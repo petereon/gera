@@ -12,6 +12,7 @@ events:
     to: 2026-3-5T18:30
     name: Talk with the manager
     description: Ouch oof
+    location: The Shire
     participants: [jozko.mrkvicka@gmail.com, ferko.pazitka@hotmail.com]
 ```
 
@@ -69,7 +70,7 @@ Level one header `# Header` is used as a title of the note in the UI when the no
 
 The note can contain tasks.
 
-If note has associated events the task in the note automatically inherits them without needing to be specified on the task level.
+If note has associated events or projects the task in the note automatically inherits them without needing to be specified on the task level.
 
 ## Project
 Can contain YAML preable containing events
@@ -78,4 +79,4 @@ event_ids:
   - event-1
   - event-2
 ```
-Project is a markdown file. It can contain arbitrary body and then it's essentially just a way to structure notes and tasks around a body of work instead of an event. It cannot have a deadline (that's what events are for). Its ID is the name of the file. It can contain markdown tasks similar to notes and if it does the tasks automatically inherit the project.
+Project is a markdown file. It can contain arbitrary body and then it's essentially just a way to structure notes and tasks around a body of work instead of an event. It cannot have a deadline (that's what events are for). Its ID is the name of the file. It can contain markdown tasks similar to notes and if it does the tasks automatically inherit the project, and associated events.

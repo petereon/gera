@@ -35,24 +35,16 @@ from gera.frontmatter import parse_frontmatter
 # the less specific ones don't consume their prefixes.
 
 # @before[OFFSET]:TARGET  (target = event-id or datetime)
-_BEFORE_REF_RE = re.compile(
-    r"@before\[(\d+[YMWDhm])\]:([\w][\w:.\-]*)"
-)
+_BEFORE_REF_RE = re.compile(r"@before\[(\d+[YMWDhm])\]:([\w][\w:.\-]*)")
 
 # @DATETIME  e.g. @2026-3-3T18:00
-_DATETIME_REF_RE = re.compile(
-    r"@(\d{4}-\d{1,2}-\d{1,2}T\d{2}:\d{2})"
-)
+_DATETIME_REF_RE = re.compile(r"@(\d{4}-\d{1,2}-\d{1,2}T\d{2}:\d{2})")
 
 # @EVENT-ID  (must NOT match @before[…] which is already handled)
-_EVENT_REF_RE = re.compile(
-    r"@(?!before\[)([a-zA-Z][\w\-]*)"
-)
+_EVENT_REF_RE = re.compile(r"@(?!before\[)([a-zA-Z][\w\-]*)")
 
 # #PROJECT-ID  (must start with a letter to avoid matching CSS hex colours)
-_PROJECT_TAG_RE = re.compile(
-    r"#([a-zA-Z][\w\-]*)"
-)
+_PROJECT_TAG_RE = re.compile(r"#([a-zA-Z][\w\-]*)")
 
 # Title extraction from raw markdown
 _H1_RE = re.compile(r"^#\s+(.+)$", re.MULTILINE)
@@ -61,6 +53,7 @@ _H1_RE = re.compile(r"^#\s+(.+)$", re.MULTILINE)
 # ---------------------------------------------------------------------------
 # Post-processing helpers
 # ---------------------------------------------------------------------------
+
 
 def _replace_gera_refs(html: str) -> str:
     """Wrap Gera ``@``/``#`` references in semantic ``<span>`` elements."""
@@ -97,7 +90,7 @@ def _replace_gera_refs(html: str) -> str:
     return html
 
 
-def _extract_title(body: str, fallback_words: int = 6) -> str:
+def extract_title(body: str, fallback_words: int = 6) -> str:
     """Extract a display title from raw markdown.
 
     Uses the first ``# H1`` heading.  Falls back to the first *N* words.
@@ -113,17 +106,19 @@ def _extract_title(body: str, fallback_words: int = 6) -> str:
 # Mistune markdown renderer (singleton)
 # ---------------------------------------------------------------------------
 
+
 def _build_markdown() -> mistune.Markdown:
     """Create a mistune Markdown instance with task-list support."""
     # mistune v3 accepts plugin names as strings
     try:
         md = mistune.create_markdown(
-            escape=False,
+            # Escape raw HTML from markdown input to avoid direct HTML injection.
+            escape=True,
             plugins=["task_lists", "strikethrough", "table"],
         )
     except Exception:
         # Fallback: no plugins if mistune version doesn't support string names
-        md = mistune.create_markdown(escape=False)
+        md = mistune.create_markdown(escape=True)
     return md
 
 
@@ -165,7 +160,7 @@ def render(content: str) -> RenderedDocument:
         A :class:`RenderedDocument` with parsed metadata and rendered HTML.
     """
     frontmatter, body = parse_frontmatter(content)
-    title = _extract_title(body)
+    title = extract_title(body)
 
     # Standard markdown → HTML
     html = str(_md(body))

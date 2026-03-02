@@ -1,0 +1,133 @@
+/* ============================================
+   GLOBAL LAYOUT
+   ============================================ */
+.app-container {
+  display: grid;
+  grid-template-columns: 120px 1fr 320px;
+  grid-template-rows: 1fr;
+  gap: 24px;
+  padding: 32px;
+  height: 100vh;
+  background-color: var(--app-bg);
+  overflow: hidden;
+}
+
+.app-container.no-inspector {
+  grid-template-columns: 120px 1fr;
+}
+
+/* ============================================
+   LEFT COLUMN - SIDEBAR
+   ============================================ */
+.left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 120px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.sidebar-block {
+  background-color: var(--surface-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 200ms ease;
+  position: relative;
+  min-height: 80px;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.sidebar-block:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.sidebar-block.active {
+  background: var(--accent-blue-subtle);
+  color: var(--accent-blue);
+}
+
+.sidebar-block-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: color 200ms ease;
+}
+
+.sidebar-block.active .sidebar-block-icon {
+  color: var(--accent-blue);
+}
+
+.sidebar-block-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  transition: color 200ms ease;
+}
+
+.sidebar-block.active .sidebar-block-label {
+  color: var(--accent-blue);
+}
+
+.sidebar-block-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--accent-blue);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================
+   CENTER COLUMN - MAIN CONTENT
+   ============================================ */
+.main-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  height: 100%;
+}
+
+/* View pane switching - no longer used with React Router */
+.view-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ============================================
+   RIGHT COLUMN - INSPECTOR
+   ============================================ */
+.right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.right-column.hidden {
+  display: none;
+}

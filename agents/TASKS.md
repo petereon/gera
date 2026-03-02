@@ -13,25 +13,25 @@
 ## Phase 1: Foundation & Persistence Layer
 
 ### 1.1 File System Setup `[backend]`
-- [ ] Create default directory structure on first launch (`events.yaml`, `tasks.md`, `/notes/`, `/projects/`)
-- [ ] Implement file path utilities and constants (base data dir, subdirectory resolvers)
-- [ ] Validate directory structure exists on startup, create missing dirs
-- [ ] Add error handling for file I/O operations (permissions, disk full, etc.)
+- [x] Create default directory structure on first launch (`events.yaml`, `tasks.md`, `/notes/`, `/projects/`)
+- [x] Implement file path utilities and constants (base data dir, subdirectory resolvers)
+- [x] Validate directory structure exists on startup, create missing dirs
+- [x] Add error handling for file I/O operations (permissions, disk full, etc.)
 
 ### 1.2 Markdown Parser `[backend]`
-- [ ] Implement YAML frontmatter parser (for notes/projects)
-- [ ] Implement YAML frontmatter writer/updater
-- [ ] Parse Markdown body content
-- [ ] Extract tasks (`- [ ]` / `- [x]`) from Markdown content
-- [ ] Parse task references: `@event-id`, `@before[2d]:event-id`, `@2026-3-3T18:00`
-- [ ] Parse project tags: `#project-id`
-- [ ] Parse time offset units (Y, M, W, D, h, m - case sensitive)
+- [x] Implement YAML frontmatter parser (for notes/projects)
+- [x] Implement YAML frontmatter writer/updater
+- [x] Parse Markdown body content
+- [x] Extract tasks (`- [ ]` / `- [x]`) from Markdown content
+- [x] Parse task references: `@event-id`, `@before[2d]:event-id`, `@2026-3-3T18:00`
+- [x] Parse project tags: `#project-id`
+- [x] Parse time offset units (Y, M, W, D, h, m - case sensitive)
 - [ ] Implement inheritance merge logic (note/project → task)
 
 ### 1.3 Entity Models `[backend]`
-- [ ] Event model: `id`, `source`, `from`, `to`, `name`, `description`, `participants`
-- [ ] Note model: Markdown with YAML preamble (`event_ids`, `project_ids`), title from H1 or first words
-- [ ] Project model: Markdown with YAML preamble (`event_ids`), ID = filename, no deadline
+- [x] Event model: `id`, `source`, `from`, `to`, `name`, `description`, `participants`
+- [x] Note model: Markdown with YAML preamble (`event_ids`, `project_ids`), title from H1 or first words
+- [x] Project model: Markdown with YAML preamble (`event_ids`), ID = filename, no deadline
 - [ ] Task model (virtual): parsed from `- [ ]` lines, with `@event`, `@before[offset]:event`, `@datetime`, `#project`
 - [ ] Implement merge semantics: tasks inherit from parent note/project, merge (not override)
 

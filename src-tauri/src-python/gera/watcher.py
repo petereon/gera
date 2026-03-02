@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
+from dataclasses import dataclass
 from pathlib import Path
 
 from watchfiles import Change, watch
@@ -25,13 +26,23 @@ EVENT_NAME = "gera://fs-changed"
 _WATCHED_SUFFIXES = frozenset((".yaml", ".yml", ".md"))
 
 
+@dataclass
+class WatcherHandle:
+    """Runtime handle for a running watcher thread."""
+
+    thread: threading.Thread
+    stop_event: threading.Event
+
+
 def _change_type_label(change: Change) -> str:
-    return {Change.added: "added", Change.modified: "modified", Change.deleted: "deleted"}.get(
-        change, "unknown"
-    )
+    return {
+        Change.added: "added",
+        Change.modified: "modified",
+        Change.deleted: "deleted",
+    }.get(change, "unknown")
 
 
-def _start_watcher(data_root: Path, emit_fn: object) -> threading.Thread:
+def _start_watcher(data_root: Path, emit_fn: object) -> WatcherHandle:
     """Launch the directory watcher in a daemon thread.
 
     Args:
@@ -41,8 +52,10 @@ def _start_watcher(data_root: Path, emit_fn: object) -> threading.Thread:
                    a partial of ``Emitter.emit_str`` bound to the ``AppHandle``.
 
     Returns:
-        The started daemon ``Thread`` (kept for optional join on shutdown).
+        A watcher handle containing the daemon thread and a stop signal.
     """
+
+    stop_event = threading.Event()
 
     def _watch_loop() -> None:
         logger.info("File watcher started on %s", data_root)
@@ -53,8 +66,7 @@ def _start_watcher(data_root: Path, emit_fn: object) -> threading.Thread:
                 # 300 ms is responsive but still coalesces burst writes.
                 debounce=300,
                 recursive=True,
-                # Stop gracefully when main thread exits
-                stop_event=threading.Event(),  # never set — daemon thread dies with process
+                stop_event=stop_event,
             ):
                 # Filter to files we care about
                 relevant: list[dict[str, str]] = []
@@ -79,7 +91,15 @@ def _start_watcher(data_root: Path, emit_fn: object) -> threading.Thread:
                     logger.warning("Failed to emit fs-changed event", exc_info=True)
         except Exception:
             logger.exception("File watcher crashed")
+        finally:
+            logger.info("File watcher stopped")
 
     thread = threading.Thread(target=_watch_loop, name="gera-fs-watcher", daemon=True)
     thread.start()
-    return thread
+    return WatcherHandle(thread=thread, stop_event=stop_event)
+
+
+def _stop_watcher(handle: WatcherHandle, timeout: float = 1.0) -> None:
+    """Signal watcher shutdown and wait briefly for thread exit."""
+    handle.stop_event.set()
+    handle.thread.join(timeout=timeout)

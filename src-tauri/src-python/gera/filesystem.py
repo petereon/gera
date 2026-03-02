@@ -31,9 +31,7 @@ def validate_data_root(data_root: Path) -> None:
             or is on a read-only filesystem.
     """
     if data_root.exists() and not data_root.is_dir():
-        raise InvalidDataDirectoryError(
-            data_root, "path exists but is not a directory"
-        )
+        raise InvalidDataDirectoryError(data_root, "path exists but is not a directory")
 
     # Check parent is writable so we can create the root if needed
     parent = data_root.parent
