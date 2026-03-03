@@ -4,7 +4,7 @@ import { getNoteDedupeKey, deduplicate } from '../utils/deduplication';
 
 /**
  * Hook that handles note filtering logic.
- * Filters floating notes (no event associations) by search query.
+ * Filters all notes by search query.
  * 
  * Hybrid search approach:
  * 1. First filters locally (instant, but limited to loaded data)
@@ -15,22 +15,16 @@ export function useNoteFiltering(notes: NoteEntity[], search: string) {
   const [backendResults, setBackendResults] = useState<NoteEntity[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Get notes without event associations
-  const floatingNotes = useMemo(
-    () => notes.filter((n) => n.event_ids.length === 0),
-    [notes]
-  );
-
   // Apply search filter (local filtering)
-  const filteredFloatingNotes = useMemo(() => {
-    if (!search) return floatingNotes;
+  const filteredNotes = useMemo(() => {
+    if (!search) return notes;
     const searchLower = search.toLowerCase();
-    return floatingNotes.filter(
+    return notes.filter(
       (n) =>
         n.title.toLowerCase().includes(searchLower) ||
         n.body_preview.toLowerCase().includes(searchLower)
     );
-  }, [floatingNotes, search]);
+  }, [notes, search]);
 
   // Backend search: if local results are few and query is long enough, search backend
   useEffect(() => {
@@ -39,14 +33,12 @@ export function useNoteFiltering(notes: NoteEntity[], search: string) {
       return;
     }
 
-    if (filteredFloatingNotes.length < 5) {
+    if (filteredNotes.length < 5) {
       setIsSearching(true);
       const timer = setTimeout(async () => {
         try {
           const results = await searchNotes(search);
-          // Filter to only floating notes (no event associations)
-          const floatingBackendResults = results.filter((n) => n.event_ids.length === 0);
-          setBackendResults(floatingBackendResults);
+          setBackendResults(results);
         } catch (error) {
           console.error('Backend note search failed:', error);
           setBackendResults([]);
@@ -57,22 +49,21 @@ export function useNoteFiltering(notes: NoteEntity[], search: string) {
 
       return () => clearTimeout(timer);
     }
-  }, [search, filteredFloatingNotes]);
+  }, [search, filteredNotes]);
 
   // Merge local and backend results, deduping by filename:0:title_hash
-  const mergedFloatingNotes = useMemo(() => {
-    if (backendResults.length === 0) return filteredFloatingNotes;
+  const mergedNotes = useMemo(() => {
+    if (backendResults.length === 0) return filteredNotes;
     
     // Get all notes (local + backend)
-    const allNotes = [...filteredFloatingNotes, ...backendResults];
+    const allNotes = [...filteredNotes, ...backendResults];
 
     // Deduplicate using filename + title hash
     return deduplicate(allNotes, getNoteDedupeKey);
-  }, [filteredFloatingNotes, backendResults]);
+  }, [filteredNotes, backendResults]);
 
   return {
-    floatingNotes,
-    filteredFloatingNotes: mergedFloatingNotes,
+    filteredNotes: mergedNotes,
     isSearching,
   };
 }

@@ -12,7 +12,7 @@ export function Sidebar() {
   const notes = useAppStore((state) => state.notes);
 
   // Calculate floating notes for badge
-  const { floatingNotes } = useNoteFiltering(notes, "");
+  const { filteredNotes } = useNoteFiltering(notes, "");
 
   const handleNavClick = (view: string) => {
     navigate(`/${view}`);
@@ -31,6 +31,20 @@ export function Sidebar() {
         <div className="sidebar-block-label">Tasks</div>
         {tasks.length > 0 && (
           <div className="sidebar-block-badge">{tasks.length}</div>
+        )}
+      </div>
+
+      {/* Notes Block */}
+      <div
+        className={`sidebar-block ${currentPath === "notes" ? "active" : ""}`}
+        onClick={() => handleNavClick("notes")}
+      >
+        <div className="sidebar-block-icon">
+          <DocumentIcon />
+        </div>
+        <div className="sidebar-block-label">Notes</div>
+        {filteredNotes.length > 0 && (
+          <div className="sidebar-block-badge">{filteredNotes.length}</div>
         )}
       </div>
 
@@ -56,19 +70,7 @@ export function Sidebar() {
         <div className="sidebar-block-label">Projects</div>
       </div>
 
-      {/* Notes Block */}
-      <div
-        className={`sidebar-block ${currentPath === "notes" ? "active" : ""}`}
-        onClick={() => handleNavClick("notes")}
-      >
-        <div className="sidebar-block-icon">
-          <DocumentIcon />
-        </div>
-        <div className="sidebar-block-label">Notes</div>
-        {floatingNotes.length > 0 && (
-          <div className="sidebar-block-badge">{floatingNotes.length}</div>
-        )}
-      </div>
+      
     </div>
   );
 }

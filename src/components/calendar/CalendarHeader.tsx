@@ -2,9 +2,12 @@ import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from '../icons/Ico
 
 interface CalendarHeaderProps {
   monthYear: string;
+  onPreviousWeek: () => void;
+  onNextWeek: () => void;
+  onToday: () => void;
 }
 
-export function CalendarHeader({ monthYear }: CalendarHeaderProps) {
+export function CalendarHeader({ monthYear, onPreviousWeek, onNextWeek, onToday }: CalendarHeaderProps) {
   return (
     <div className="calendar-header">
       <div className="calendar-header-left">
@@ -16,9 +19,16 @@ export function CalendarHeader({ monthYear }: CalendarHeaderProps) {
           Weekly View
           <ChevronDownIcon />
         </button>
+        <button className="today-btn" onClick={onToday}>
+          Today
+        </button>
         <div className="calendar-nav">
-          <button className="nav-btn"><ChevronLeftIcon /></button>
-          <button className="nav-btn"><ChevronRightIcon /></button>
+          <button className="nav-btn" onClick={onPreviousWeek} aria-label="Previous week">
+            <ChevronLeftIcon />
+          </button>
+          <button className="nav-btn" onClick={onNextWeek} aria-label="Next week">
+            <ChevronRightIcon />
+          </button>
         </div>
       </div>
     </div>

@@ -1,11 +1,11 @@
 import { useEffect, useCallback } from 'react';
 import { listen } from '@tauri-apps/api/event';
-import { listEvents, listNotes, listFloatingTasks, getWeekDateRange } from '../api';
+import { listEvents, listNotes, listFloatingTasks } from '../api';
 import { useAppStore } from '../stores/useAppStore';
 
 /**
- * Hook that manages initial data loading and filesystem change synchronization.
- * Listens to gera://fs-changed events and reloads data whenever files change.
+ * Hook that manages initial data loading and data change synchronization.
+ * Listens to gera://data-changed events and reloads data whenever entities change.
  */
 export function useGeraSync() {
   const setEvents = useAppStore((state) => state.setEvents);
@@ -15,9 +15,9 @@ export function useGeraSync() {
 
   const reloadData = useCallback(async () => {
     try {
-      const weekRange = getWeekDateRange();
+      // Load all events (not just current week) so tasks can reference any event
       const [ev, nt, tk] = await Promise.all([
-        listEvents(weekRange),
+        listEvents(),
         listNotes(),
         listFloatingTasks(),
       ]);
@@ -34,10 +34,10 @@ export function useGeraSync() {
     reloadData().then(() => setLoading(false));
   }, [reloadData, setLoading]);
 
-  // Listen to filesystem changes
+  // Listen to data changes (from both file system and backend mutations)
   useEffect(() => {
-    const unlisten = listen<{ changes: { type: string; path: string }[] }>(
-      'gera://fs-changed',
+    const unlisten = listen<{ changes: { entity: string; ids: string[] | null }[] }>(
+      'gera://data-changed',
       () => {
         reloadData();
       }

@@ -239,6 +239,14 @@ export async function getNoteContent(
   return pyInvoke<NoteContentResponse>("get_note_content", { filename });
 }
 
+/** Update a note file with new markdown content. */
+export async function updateNoteContent(
+  filename: string,
+  content: string
+): Promise<void> {
+  return pyInvoke<void>("update_note_content", { filename, content });
+}
+
 // ============================================================================
 // SEARCH COMMANDS - FTS5 Full-Text Search
 // ============================================================================
@@ -265,4 +273,19 @@ export async function searchProjects(query: string): Promise<ProjectEntity[]> {
 export async function searchTasks(query: string): Promise<TaskEntity[]> {
   const response = await pyInvoke<{ tasks: TaskEntity[] }>("search_tasks", { query });
   return response.tasks;
+}
+
+// ============================================================================
+// TASK MUTATION COMMANDS
+// ============================================================================
+
+/** Toggle a task's completion status in its source markdown file. */
+export async function toggleTask(
+  sourceFile: string,
+  lineNumber: number
+): Promise<void> {
+  return pyInvoke<void>("toggle_task", {
+    source_file: sourceFile,
+    line_number: lineNumber,
+  });
 }

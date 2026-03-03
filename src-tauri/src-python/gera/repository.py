@@ -52,7 +52,7 @@ EmitFn = Callable[[str, str], None]
 # ---------------------------------------------------------------------------
 
 # Matches a markdown task checkbox line: - [ ] or - [x]
-_TASK_PAT = re.compile(r"^- \[([ xX])\] (.+)")
+_TASK_PAT = re.compile(r"^[-*+] \[([ xX])\] (.+)")
 
 # Matches time/event references inside task text:
 #   @2026-02-20T09:00            → absolute datetime
@@ -1575,13 +1575,13 @@ class Repository:
         line = lines[idx]
         line_no_newline = line.rstrip("\n")
         newline = line[len(line_no_newline):]
-        match = re.match(r"^(\s*)- \[([ xX])\] (.+)$", line_no_newline)
+        match = re.match(r"^(\s*)([-*+]) \[([ xX])\] (.+)$", line_no_newline)
         if match is None:
             raise ValueError(f"Line {line_number} is not a task: {line!r}")
 
-        indent, marker, task_text = match.groups()
+        indent, bullet, marker, task_text = match.groups()
         toggled_marker = " " if marker in "xX" else "x"
-        lines[idx] = f"{indent}- [{toggled_marker}] {task_text}{newline}"
+        lines[idx] = f"{indent}{bullet} [{toggled_marker}] {task_text}{newline}"
 
         path.write_text("".join(lines), encoding="utf-8")
         logger.info("Toggled task at %s:%d", source_file, line_number)

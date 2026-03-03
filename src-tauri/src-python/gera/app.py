@@ -226,6 +226,17 @@ async def get_note_content(body: NoteContentRequest) -> NoteContentResponse:
     )
 
 
+class UpdateNoteContentRequest(BaseModel):
+    filename: str
+    content: str
+
+
+@commands.command()
+async def update_note_content(body: UpdateNoteContentRequest) -> None:
+    """Update a note file with new markdown content."""
+    get_repo().update_note(body.filename, body.content)
+
+
 # ============================================================================
 #   SEARCH COMMANDS - FTS5 Backend Search
 # ============================================================================
@@ -277,6 +288,24 @@ async def search_tasks(body: SearchRequest) -> TasksSearchResponse:
     """Full-text search tasks using FTS5."""
     tasks = get_repo().search_tasks(body.query)
     return TasksSearchResponse(tasks=tasks)
+
+
+# ============================================================================
+#   TASK MUTATION COMMANDS
+# ============================================================================
+
+
+class ToggleTaskRequest(BaseModel):
+    source_file: str
+    line_number: int
+
+
+@commands.command()
+async def toggle_task(body: ToggleTaskRequest) -> None:
+    """Toggle a task's completion status in its source markdown file."""
+    from gera.service import tasks
+
+    tasks.toggle_task(get_repo(), body.source_file, body.line_number)
 
 
 # ---------------------------------------------------------------------------

@@ -6,15 +6,12 @@ import { EventEntity } from '../api';
  */
 export function useCalendarUtils() {
   /**
-   * Get array of dates for the current week (Monday - Sunday)
+   * Get array of dates for a week starting from the given Monday
    */
-  const getWeekDates = useCallback((): Date[] => {
-    const now = new Date();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const getWeekDates = useCallback((weekStart: Date): Date[] => {
     return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
       return d;
     });
   }, []);
