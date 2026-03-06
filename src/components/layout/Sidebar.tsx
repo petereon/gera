@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppStore } from '../../stores/useAppStore';
 import { useNoteFiltering } from '../../hooks/useNoteFiltering';
-import { InboxIcon, CalendarIcon, ProjectsIcon, DocumentIcon } from '../icons/Icons';
+import { InboxIcon, CalendarIcon, DocumentIcon } from '../icons/Icons';
 
 export function Sidebar() {
   const navigate = useNavigate();
@@ -57,17 +57,6 @@ export function Sidebar() {
           <CalendarIcon />
         </div>
         <div className="sidebar-block-label">Calendar</div>
-      </div>
-
-      {/* Projects Block */}
-      <div
-        className={`sidebar-block ${currentPath === "projects" ? "active" : ""}`}
-        onClick={() => handleNavClick("projects")}
-      >
-        <div className="sidebar-block-icon">
-          <ProjectsIcon />
-        </div>
-        <div className="sidebar-block-label">Projects</div>
       </div>
 
       

@@ -9,7 +9,6 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { Inspector } from "./components/layout/Inspector";
 import { TasksView } from "./components/tasks/TasksView";
 import { CalendarView } from "./components/calendar/CalendarView";
-import { ProjectsView } from "./components/projects/ProjectsView";
 import { NotesView } from "./components/notes/NotesView";
 
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -57,14 +56,6 @@ function App() {
           element={
             <AppLayout>
               <CalendarView />
-            </AppLayout>
-          } 
-        />
-        <Route 
-          path="/projects" 
-          element={
-            <AppLayout>
-              <ProjectsView />
             </AppLayout>
           } 
         />

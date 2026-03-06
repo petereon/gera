@@ -50,8 +50,17 @@ export function GeraRefChip({
       }
       break;
     case 'before':
+      // Handles both @before[2d]:id and @after[2d]:id
+      // Build clean display from offset+target, fall back to raw value
       if (offset && target) {
-        displayText = `@before[${offset}]:${target}`;
+        const modifier = value.startsWith('@after') ? 'after' : 'before';
+        displayText = `@${modifier}[${offset}]:${target}`;
+      } else {
+        // Strip any escape chars / HTML entities from raw value
+        displayText = value
+          .replace(/\\([[\]])/g, '$1')
+          .replace(/&#x20;/g, '')
+          .trim();
       }
       break;
     case 'project':

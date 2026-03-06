@@ -257,11 +257,12 @@
   font-size: 11px;
   color: var(--text-tertiary);
   text-align: right;
-  padding: 8px 12px 8px 0;
+  padding: 2px 8px 0 0;
   border-right: 1px solid var(--surface-secondary);
   height: 56px;
   min-height: 56px;
   box-sizing: border-box;
+  vertical-align: top;
 }
 
 .grid-cell {
@@ -280,13 +281,16 @@
 /* EVENT BLOCKS */
 .event-block {
   background: var(--accent-blue);
-  border-radius: var(--radius-lg);
-  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  padding: 4px 14px;
   color: white;
   cursor: pointer;
   transition: transform 200ms ease, box-shadow 200ms ease;
   z-index: 1;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .event-block:hover {
@@ -295,9 +299,10 @@
 }
 
 .event-block .event-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
+  line-height: 1.3;
 }
 
 .event-block .event-time {

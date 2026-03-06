@@ -13,6 +13,9 @@ export function EventBlock({ event, notes }: EventBlockProps) {
   const setSelectedNote = useAppStore((state) => state.setSelectedNote);
   
   const eventStyle = calculateEventStyle(event);
+  // Only show time if the block is tall enough to fit a second line (~44px = ~30min)
+  const heightPx = parseFloat(eventStyle.height);
+  const showTime = heightPx >= 44;
 
   const handleClick = () => {
     setSelectedEvent(event);
@@ -34,9 +37,11 @@ export function EventBlock({ event, notes }: EventBlockProps) {
       }}
     >
       <div className="event-title">{event.name}</div>
-      <div className="event-time">
-        {formatEventTime(event.from_)}
-      </div>
+      {showTime && (
+        <div className="event-time">
+          {formatEventTime(event.from_)}
+        </div>
+      )}
     </div>
   );
 }

@@ -3,8 +3,8 @@ import { EventEntity, NoteEntity, TaskEntity } from '../api';
 
 export interface AppStore {
   // Navigation
-  activeView: 'tasks' | 'calendar' | 'projects' | 'notes';
-  setActiveView: (view: 'tasks' | 'calendar' | 'projects' | 'notes') => void;
+  activeView: 'tasks' | 'calendar' | 'notes';
+  setActiveView: (view: 'tasks' | 'calendar' | 'notes') => void;
   
   // Data
   events: EventEntity[];
@@ -25,10 +25,8 @@ export interface AppStore {
   // Search filters
   tasksSearch: string;
   notesSearch: string;
-  projectsSearch: string;
   setTasksSearch: (search: string) => void;
   setNotesSearch: (search: string) => void;
-  setProjectsSearch: (search: string) => void;
 }
 
 export const useAppStore = create<AppStore>((set) => ({
@@ -55,8 +53,6 @@ export const useAppStore = create<AppStore>((set) => ({
   // Search filters
   tasksSearch: '',
   notesSearch: '',
-  projectsSearch: '',
   setTasksSearch: (tasksSearch) => set({ tasksSearch }),
   setNotesSearch: (notesSearch) => set({ notesSearch }),
-  setProjectsSearch: (projectsSearch) => set({ projectsSearch }),
 }));

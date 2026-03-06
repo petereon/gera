@@ -1,0 +1,606 @@
+/**
+ * GeraRefTypeahead — floating autocomplete for `@` references.
+ *
+ * Panels (explicit, chosen by user or auto-detected from typed text):
+ *  - choose:    initial 2-button picker (absolute date-time / event reference)
+ *  - absolute:  date input + time input → @YYYY-MM-DDTHH:MM
+ *  - event-ref: relation selector (on / before / after) + amount/unit + event list
+ *
+ * Mounted as a Lexical composer child via addComposerChild$ in geraRefsPlugin.
+ */
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
+import {
+  $createTextNode,
+  $getNodeByKey,
+  $getSelection,
+  $isRangeSelection,
+  $isTextNode,
+  COMMAND_PRIORITY_LOW,
+  KEY_ARROW_DOWN_COMMAND,
+  KEY_ARROW_UP_COMMAND,
+  KEY_ENTER_COMMAND,
+  KEY_ESCAPE_COMMAND,
+  KEY_TAB_COMMAND,
+} from 'lexical';
+import { $isListItemNode } from '@lexical/list';
+import { useAppStore } from '../stores/useAppStore';
+import { $createGeraRefNode } from './GeraRefNode';
+import './GeraRefTypeahead.css';
+
+/* ------------------------------------------------------------------ */
+/* Types                                                                */
+/* ------------------------------------------------------------------ */
+
+type Panel = 'choose' | 'absolute' | 'event-ref';
+type Relation = 'on' | 'before' | 'after';
+
+interface MentionContext {
+  textNodeKey: string;
+  startOffset: number;
+  endOffset: number;
+  query: string;
+  x: number;
+  y: number;
+}
+
+interface EventOption {
+  id: string;
+  name: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Helpers                                                              */
+/* ------------------------------------------------------------------ */
+
+const UNITS = ['m', 'h', 'D', 'W', 'M', 'Y'] as const;
+const UNIT_LABELS: Record<string, string> = {
+  m: 'min', h: 'hr', D: 'day', W: 'wk', M: 'mo', Y: 'yr',
+};
+
+/** Auto-detect which panel to show based on what is typed after `@`. */
+function detectPanel(query: string): Panel {
+  if (query.length === 0) return 'choose';
+  if (/^\d/.test(query)) return 'absolute';
+  return 'event-ref';
+}
+
+/** Return canonical ISO datetime if valid, else null. */
+function canonicalDatetime(query: string): string | null {
+  const m = query.match(/^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}))$/);
+  return m ? `${m[1]}T${m[2]}` : null;
+}
+
+
+
+/** Read current mention context from the Lexical selection state. */
+function readMentionContext(): MentionContext | null {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection) || !selection.isCollapsed()) return null;
+
+  const anchorNode = selection.anchor.getNode();
+  if (!$isTextNode(anchorNode)) return null;
+
+  // Only activate on checkbox list items (task lines)
+  const parent = anchorNode.getParent();
+  if (!$isListItemNode(parent) || parent.getChecked() === undefined) return null;
+
+  const text = anchorNode.getTextContent();
+  const cursorOffset = selection.anchor.offset;
+  const lineStart = text.lastIndexOf('\n', Math.max(0, cursorOffset - 1)) + 1;
+  const segment = text.slice(lineStart, cursorOffset);
+  const atIdx = segment.lastIndexOf('@');
+  if (atIdx === -1) return null;
+
+  const startOffset = lineStart + atIdx;
+  const query = text.slice(startOffset + 1, cursorOffset);
+
+  const prevChar = startOffset > 0 ? text[startOffset - 1] : '';
+  if (prevChar && !/[\s([{>;,]/.test(prevChar)) return null;
+  if (query.includes('\n')) return null;
+
+  const nativeSel = window.getSelection();
+  if (!nativeSel || nativeSel.rangeCount === 0) return null;
+  const rect = nativeSel.getRangeAt(0).getBoundingClientRect();
+
+  return { textNodeKey: anchorNode.getKey(), startOffset, endOffset: cursorOffset, query, x: rect.left, y: rect.bottom + 6 };
+}
+
+/* ================================================================== */
+/* Component                                                            */
+/* ================================================================== */
+
+export function GeraRefTypeahead(): JSX.Element | null {
+  const [editor] = useLexicalComposerContext();
+  const events = useAppStore((s) => s.events);
+
+  /* ---- state ---- */
+  const [context, setContext] = useState<MentionContext | null>(null);
+  const [dismissedAnchorKey, setDismissedAnchorKey] = useState<string | null>(null);
+  // Panel can be forced (user clicked a chooser button) or auto-detected
+  const [forcedPanel, setForcedPanel] = useState<Panel | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  // Event-ref form state
+  const [relation, setRelation] = useState<Relation>('on');
+  const [amount, setAmount] = useState(1);
+  const [unit, setUnit] = useState('D');
+  const [eventFilter, setEventFilter] = useState('');
+
+  // Absolute form state
+  const [dateValue, setDateValue] = useState('');
+  const [timeValue, setTimeValue] = useState('');
+
+  const contextRef = useRef(context);
+  contextRef.current = context;
+  const popupRef = useRef<HTMLDivElement>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const timeInputRef = useRef<HTMLInputElement>(null);
+  const lastAutoDatetimeRef = useRef<string | null>(null);
+
+  /* ---- derived ---- */
+  const panel: Panel = forcedPanel ?? (context ? detectPanel(context.query) : 'choose');
+
+  const filteredEvents = useMemo<EventOption[]>(() => {
+    const q = eventFilter.trim().toLowerCase();
+    const mapped = events.map((e) => ({ id: e.id, name: e.name }));
+    if (!q) return mapped.slice(0, 8);
+    return mapped
+      .filter((e) => e.id.toLowerCase().includes(q) || e.name.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [eventFilter, events]);
+
+  /* ---- reset selection when list changes ---- */
+  useEffect(() => { setSelectedIndex(0); }, [eventFilter, panel]);
+
+  /* ---- sync eventFilter from typed query for event-ref panel ---- */
+  useEffect(() => {
+    if (!context) return;
+    if (panel === 'event-ref') {
+      // Extract the event filter part from the raw query
+      const q = context.query;
+      // If query looks like before[...]:xxx or after[...]:xxx, pull out after `:`
+      const colonMatch = q.match(/:([\w\-:]*)$/);
+      if (colonMatch) {
+        setEventFilter(colonMatch[1]);
+      } else if (/^(before|after)/i.test(q)) {
+        // Still typing the modifier, no event filter yet
+        setEventFilter('');
+      } else {
+        // Plain text = event filter
+        setEventFilter(q);
+      }
+    }
+  }, [context, panel]);
+
+  /* ---- listen for editor updates to detect `@` ---- */
+  useEffect(() => {
+    return editor.registerUpdateListener(({ editorState }) => {
+      editorState.read(() => {
+        const ctx = readMentionContext();
+        if (!ctx) {
+          setContext(null);
+          return;
+        }
+        if (dismissedAnchorKey === `${ctx.textNodeKey}:${ctx.startOffset}`) {
+          setContext(null);
+          return;
+        }
+        setContext(ctx);
+      });
+    });
+  }, [editor, dismissedAnchorKey]);
+
+  /* ---- when context disappears, reset panel ---- */
+  useEffect(() => {
+    if (!context) {
+      setForcedPanel(null);
+      setSelectedIndex(0);
+      setEventFilter('');
+      setDateValue('');
+      setTimeValue('');
+      setRelation('on');
+      setAmount(1);
+      setUnit('D');
+      lastAutoDatetimeRef.current = null;
+      setDismissedAnchorKey(null);
+    }
+  }, [context]);
+
+  /* ---- auto-complete absolute when fully typed ---- */
+  useEffect(() => {
+    if (!context || panel !== 'absolute') return;
+    const canonical = canonicalDatetime(context.query);
+    if (!canonical) { lastAutoDatetimeRef.current = null; return; }
+    const token = `${context.textNodeKey}:${context.startOffset}:${canonical}`;
+    if (lastAutoDatetimeRef.current === token) return;
+    lastAutoDatetimeRef.current = token;
+    completeAbsolute(canonical);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [context, panel]);
+
+  /* ---- helpers ---- */
+
+  const replaceMentionWithChip = useCallback(
+    (
+      kind: 'event' | 'datetime' | 'before',
+      value: string,
+      options?: { offset?: string; target?: string; datetime?: string; event?: string },
+    ) => {
+      const ctx = contextRef.current;
+      if (!ctx) return;
+
+      editor.update(() => {
+        const node = $getNodeByKey(ctx.textNodeKey);
+        if (!$isTextNode(node)) return;
+
+        const fullText = node.getTextContent();
+        const beforeText = fullText.slice(0, ctx.startOffset);
+        const afterText = fullText.slice(ctx.endOffset);
+
+        const chipNode = $createGeraRefNode(
+          kind, value,
+          options?.offset, options?.target, options?.datetime, options?.event,
+        );
+
+        if (beforeText.length > 0) {
+          node.setTextContent(beforeText);
+          node.insertAfter(chipNode);
+        } else {
+          node.replace(chipNode);
+        }
+
+        // Cursor always ends up after the chip
+        const trailingText = afterText.length > 0 ? afterText : ' ';
+        const trailingNode = $createTextNode(trailingText);
+        chipNode.insertAfter(trailingNode);
+        const pos = afterText.length > 0 ? 0 : 1;
+        trailingNode.select(pos, pos);
+      });
+
+      setContext(null);
+      setDismissedAnchorKey(null);
+    },
+    [editor],
+  );
+
+  const completeEvent = useCallback(
+    (eventId: string) => {
+      if (relation === 'on') {
+        replaceMentionWithChip('event', `@${eventId}`, { event: eventId });
+      } else {
+        const raw = `@${relation}[${amount}${unit}]:${eventId}`;
+        replaceMentionWithChip('before', raw, {
+          offset: `${amount}${unit}`, target: eventId, event: eventId,
+        });
+      }
+    },
+    [relation, amount, unit, replaceMentionWithChip],
+  );
+
+  const completeAbsolute = useCallback(
+    (iso: string) => {
+      replaceMentionWithChip('datetime', `@${iso}`, { datetime: iso });
+    },
+    [replaceMentionWithChip],
+  );
+
+  const dismiss = useCallback(() => {
+    if (context) {
+      setDismissedAnchorKey(`${context.textNodeKey}:${context.startOffset}`);
+    }
+    setContext(null);
+  }, [context]);
+
+  const openAbsolutePanel = useCallback(() => {
+    const now = new Date();
+    setForcedPanel('absolute');
+    setDateValue(now.toISOString().slice(0, 10));
+    setTimeValue(now.toTimeString().slice(0, 5));
+    setSelectedIndex(0);
+    // Focus the date input after React renders
+    requestAnimationFrame(() => dateInputRef.current?.focus());
+  }, []);
+
+  const openEventRefPanel = useCallback(() => {
+    setForcedPanel('event-ref');
+    setRelation('on');
+    setAmount(1);
+    setUnit('D');
+    setEventFilter('');
+    setSelectedIndex(0);
+  }, []);
+
+  /* ---- keydown handler for date/time inputs ---- */
+  const handleAbsoluteKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        const d = dateInputRef.current?.value ?? dateValue;
+        const t = timeInputRef.current?.value ?? timeValue;
+        if (d && t) {
+          e.preventDefault();
+          e.stopPropagation();
+          completeAbsolute(`${d}T${t}`);
+        }
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        dismiss();
+        editor.focus();
+        return;
+      }
+      if (e.key === 'Tab') {
+        if (!e.shiftKey && e.currentTarget === dateInputRef.current) {
+          e.preventDefault();
+          timeInputRef.current?.focus();
+          return;
+        }
+        if (e.shiftKey && e.currentTarget === timeInputRef.current) {
+          e.preventDefault();
+          dateInputRef.current?.focus();
+          return;
+        }
+        // Tab from time (no shift) → complete if valid
+        if (!e.shiftKey && e.currentTarget === timeInputRef.current) {
+          const d = dateInputRef.current?.value ?? dateValue;
+          const t = timeInputRef.current?.value ?? timeValue;
+          if (d && t) {
+            e.preventDefault();
+            e.stopPropagation();
+            completeAbsolute(`${d}T${t}`);
+          }
+          return;
+        }
+      }
+    },
+    [dateValue, timeValue, completeAbsolute, dismiss, editor],
+  );
+
+  /* ---- keyboard ---- */
+
+  useEffect(() => {
+    if (!context) return;
+
+    const getItemCount = (): number => {
+      if (panel === 'choose') return 2;
+      if (panel === 'absolute') return 0;
+      return filteredEvents.length;
+    };
+
+    const unregDown = editor.registerCommand(KEY_ARROW_DOWN_COMMAND, (e) => {
+      const n = getItemCount();
+      if (n === 0) return false;
+      e?.preventDefault();
+      setSelectedIndex((i) => (i + 1) % n);
+      return true;
+    }, COMMAND_PRIORITY_LOW);
+
+    const unregUp = editor.registerCommand(KEY_ARROW_UP_COMMAND, (e) => {
+      const n = getItemCount();
+      if (n === 0) return false;
+      e?.preventDefault();
+      setSelectedIndex((i) => (i - 1 + n) % n);
+      return true;
+    }, COMMAND_PRIORITY_LOW);
+
+    const unregEnter = editor.registerCommand(KEY_ENTER_COMMAND, (e) => {
+      if (panel === 'choose') {
+        e?.preventDefault();
+        if (selectedIndex === 0) openAbsolutePanel();
+        else openEventRefPanel();
+        return true;
+      }
+      if (panel === 'absolute') {
+        if (dateValue && timeValue) {
+          const iso = `${dateValue}T${timeValue}`;
+          e?.preventDefault();
+          completeAbsolute(iso);
+          return true;
+        }
+        return false;
+      }
+      if (panel === 'event-ref' && filteredEvents.length > 0) {
+        e?.preventDefault();
+        const ev = filteredEvents[selectedIndex] ?? filteredEvents[0];
+        completeEvent(ev.id);
+        return true;
+      }
+      return false;
+    }, COMMAND_PRIORITY_LOW);
+
+    const unregTab = editor.registerCommand(KEY_TAB_COMMAND, (e) => {
+      if (panel === 'absolute') {
+        // Tab from date → time input
+        if (document.activeElement === dateInputRef.current) {
+          e?.preventDefault();
+          timeInputRef.current?.focus();
+          return true;
+        }
+        // Tab from time → complete if valid
+        if (document.activeElement === timeInputRef.current && dateValue && timeValue) {
+          e?.preventDefault();
+          completeAbsolute(`${dateValue}T${timeValue}`);
+          return true;
+        }
+        return false;
+      }
+      if (panel === 'event-ref' && filteredEvents.length > 0) {
+        e?.preventDefault();
+        const ev = filteredEvents[selectedIndex] ?? filteredEvents[0];
+        completeEvent(ev.id);
+        return true;
+      }
+      return false;
+    }, COMMAND_PRIORITY_LOW);
+
+    const unregEsc = editor.registerCommand(KEY_ESCAPE_COMMAND, (e) => {
+      e?.preventDefault();
+      dismiss();
+      return true;
+    }, COMMAND_PRIORITY_LOW);
+
+    return () => { unregDown(); unregUp(); unregEnter(); unregTab(); unregEsc(); };
+  }, [context, panel, filteredEvents, selectedIndex, editor, dismiss, completeEvent, completeAbsolute, openAbsolutePanel, openEventRefPanel, dateValue, timeValue]);
+
+  /* ---- click outside ---- */
+  useEffect(() => {
+    if (!context) return;
+    const handler = (e: MouseEvent) => {
+      if (popupRef.current && !popupRef.current.contains(e.target as Node)) dismiss();
+    };
+    document.addEventListener('mousedown', handler, true);
+    return () => document.removeEventListener('mousedown', handler, true);
+  }, [context, dismiss]);
+
+  /* ---- render ---- */
+
+  if (!context) return null;
+
+  const popupWidth = 280;
+  const left = Math.min(context.x, window.innerWidth - popupWidth - 16);
+
+  return (
+    <div
+      ref={popupRef}
+      className="gera-typeahead"
+      style={{ position: 'fixed', top: context.y, left, zIndex: 2000 }}
+      onMouseDown={(e) => {
+        // Keep editor focus, but allow native interaction with inputs/selects
+        const t = e.target as HTMLElement;
+        if (!(t instanceof HTMLInputElement || t instanceof HTMLSelectElement || t instanceof HTMLButtonElement)) {
+          e.preventDefault();
+        }
+      }}
+    >
+      {/* ---- CHOOSER ---- */}
+      {panel === 'choose' && (
+        <div className="gera-typeahead__chooser">
+          <div className="gera-typeahead__hint">Choose reference type</div>
+          <button
+            type="button"
+            className={`gera-typeahead__option ${selectedIndex === 0 ? 'gera-typeahead__option--selected' : ''}`}
+            onMouseEnter={() => setSelectedIndex(0)}
+            onClick={openAbsolutePanel}
+          >
+            <span className="gera-typeahead__option-icon">📅</span>
+            <span>
+              <strong>Absolute datetime</strong>
+              <small>@2026-03-04T18:00</small>
+            </span>
+          </button>
+          <button
+            type="button"
+            className={`gera-typeahead__option ${selectedIndex === 1 ? 'gera-typeahead__option--selected' : ''}`}
+            onMouseEnter={() => setSelectedIndex(1)}
+            onClick={openEventRefPanel}
+          >
+            <span className="gera-typeahead__option-icon">🔗</span>
+            <span>
+              <strong>Event reference</strong>
+              <small>@event-id or @before[2d]:id</small>
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* ---- ABSOLUTE DATE-TIME ---- */}
+      {panel === 'absolute' && (
+        <div className="gera-typeahead__absolute">
+          <div className="gera-typeahead__hint">Enter date and time</div>
+          <div className="gera-typeahead__datetime-row">
+            <input
+              ref={dateInputRef}
+              type="date"
+              className="gera-typeahead__input"
+              value={dateValue}
+              onChange={(e) => setDateValue(e.target.value)}
+              onKeyDown={handleAbsoluteKeyDown}
+            />
+            <input
+              ref={timeInputRef}
+              type="time"
+              className="gera-typeahead__input"
+              value={timeValue}
+              onChange={(e) => setTimeValue(e.target.value)}
+              onKeyDown={handleAbsoluteKeyDown}
+            />
+          </div>
+          {dateValue && timeValue && (
+            <div className="gera-typeahead__preview">
+              @{dateValue}T{timeValue}
+            </div>
+          )}
+          <div className="gera-typeahead__hint-small">
+            {dateValue && timeValue
+              ? 'Press Enter to insert · Tab to switch fields'
+              : 'Or type directly: @YYYY-MM-DDTHH:MM'}
+          </div>
+        </div>
+      )}
+
+      {/* ---- EVENT REFERENCE ---- */}
+      {panel === 'event-ref' && (
+        <div className="gera-typeahead__event-ref">
+          <div className="gera-typeahead__relation-row">
+            {(['on', 'before', 'after'] as Relation[]).map((r) => (
+              <button
+                key={r}
+                type="button"
+                className={`gera-typeahead__relation-btn ${relation === r ? 'gera-typeahead__relation-btn--active' : ''}`}
+                onClick={() => setRelation(r)}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+
+          {/* Amount + unit row, grayed out when relation is "on" */}
+          <div className={`gera-typeahead__modifier-row ${relation === 'on' ? 'gera-typeahead__modifier-row--disabled' : ''}`}>
+            <input
+              type="number"
+              className="gera-typeahead__number"
+              min={1}
+              value={amount}
+              disabled={relation === 'on'}
+              onChange={(e) => setAmount(Math.max(1, Number.parseInt(e.target.value, 10) || 1))}
+            />
+            <select
+              className="gera-typeahead__select"
+              value={unit}
+              disabled={relation === 'on'}
+              onChange={(e) => setUnit(e.target.value)}
+            >
+              {UNITS.map((u) => (
+                <option key={u} value={u}>{UNIT_LABELS[u]}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="gera-typeahead__hint">Select an event</div>
+          {filteredEvents.length === 0 ? (
+            <div className="gera-typeahead__empty">No matching events</div>
+          ) : (
+            <ul className="gera-typeahead__list" role="listbox">
+              {filteredEvents.map((ev, i) => (
+                <li
+                  key={ev.id}
+                  role="option"
+                  aria-selected={i === selectedIndex}
+                  className={`gera-typeahead__item ${i === selectedIndex ? 'gera-typeahead__item--selected' : ''}`}
+                  onMouseEnter={() => setSelectedIndex(i)}
+                  onClick={() => completeEvent(ev.id)}
+                >
+                  <span className="gera-typeahead__item-id">@{ev.id}</span>
+                  <span className="gera-typeahead__item-name">{ev.name}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
