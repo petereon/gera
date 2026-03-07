@@ -289,3 +289,54 @@ export async function toggleTask(
     line_number: lineNumber,
   });
 }
+
+/** Create a new floating task in tasks.md. */
+export async function createTask(text: string): Promise<TaskEntity> {
+  const response = await pyInvoke<{ task: TaskEntity }>("create_task", { text });
+  return response.task;
+}
+
+/** Delete a task line from its source file. */
+export async function deleteTask(
+  sourceFile: string,
+  lineNumber: number
+): Promise<void> {
+  return pyInvoke<void>("delete_task", {
+    source_file: sourceFile,
+    line_number: lineNumber,
+  });
+}
+
+/** Update the text of an existing task line. */
+export async function updateTask(
+  sourceFile: string,
+  lineNumber: number,
+  newText: string
+): Promise<void> {
+  return pyInvoke<void>("update_task", {
+    source_file: sourceFile,
+    line_number: lineNumber,
+    new_text: newText,
+  });
+}
+
+/** Create a new note file. */
+export async function createNote(
+  filename: string,
+  content: string = "",
+  eventIds?: string[],
+  projectIds?: string[]
+): Promise<NoteEntity> {
+  const response = await pyInvoke<{ note: NoteEntity }>("create_note", {
+    filename,
+    content,
+    event_ids: eventIds ?? null,
+    project_ids: projectIds ?? null,
+  });
+  return response.note;
+}
+
+/** Delete a note file. */
+export async function deleteNote(filename: string): Promise<void> {
+  return pyInvoke<void>("delete_note", { filename });
+}

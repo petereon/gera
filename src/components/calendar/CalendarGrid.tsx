@@ -17,21 +17,26 @@ interface CalendarGridProps {
   ) => EventEntity[];
 }
 
-export function CalendarGrid({ 
-  dayNames, 
-  weekDates, 
-  hours, 
-  formatHour, 
-  events, 
+export function CalendarGrid({
+  dayNames,
+  weekDates,
+  hours,
+  formatHour,
+  events,
   notes,
-  getEventForCell 
+  getEventForCell,
 }: CalendarGridProps) {
+  const colCount = weekDates.length;
+  const gridStyle = {
+    gridTemplateColumns: `60px repeat(${colCount}, 1fr)`,
+  };
+
   return (
-    <div className="calendar-grid">
+    <div className="calendar-grid" style={gridStyle}>
       {/* Day headers row */}
       <div className="calendar-corner"></div>
       {dayNames.map((day, i) => (
-        <div key={day} className="day-header">
+        <div key={day + i} className="day-header">
           <span className="day-name">{day}</span>
           <span className="day-number">{weekDates[i].getDate()}</span>
         </div>

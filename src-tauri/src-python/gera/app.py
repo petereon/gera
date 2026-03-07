@@ -308,6 +308,88 @@ async def toggle_task(body: ToggleTaskRequest) -> None:
     tasks.toggle_task(get_repo(), body.source_file, body.line_number)
 
 
+class CreateTaskRequest(BaseModel):
+    text: str
+
+
+class CreateTaskResponse(BaseModel):
+    task: TaskEntity
+
+
+@commands.command()
+async def create_task(body: CreateTaskRequest) -> CreateTaskResponse:
+    """Create a new floating task in tasks.md."""
+    from gera.service import tasks
+
+    task = tasks.create_task(get_repo(), body.text)
+    return CreateTaskResponse(task=task)
+
+
+class CreateNoteRequest(BaseModel):
+    filename: str
+    content: str = ""
+    event_ids: list[str] | None = None
+    project_ids: list[str] | None = None
+
+
+class CreateNoteResponse(BaseModel):
+    note: NoteEntity
+
+
+@commands.command()
+async def create_note(body: CreateNoteRequest) -> CreateNoteResponse:
+    """Create a new note file."""
+    from gera.service import notes
+
+    note = notes.create_note(
+        get_repo(),
+        body.filename,
+        body.content,
+        event_ids=body.event_ids,
+        project_ids=body.project_ids,
+    )
+    return CreateNoteResponse(note=note)
+
+
+class UpdateTaskRequest(BaseModel):
+    source_file: str
+    line_number: int
+    new_text: str
+
+
+@commands.command()
+async def update_task(body: UpdateTaskRequest) -> None:
+    """Update the text of an existing task."""
+    from gera.service import tasks
+
+    tasks.update_task(get_repo(), body.source_file, body.line_number, body.new_text)
+
+
+class DeleteTaskRequest(BaseModel):
+    source_file: str
+    line_number: int
+
+
+@commands.command()
+async def delete_task(body: DeleteTaskRequest) -> None:
+    """Delete a task line from its source file."""
+    from gera.service import tasks
+
+    tasks.delete_task(get_repo(), body.source_file, body.line_number)
+
+
+class DeleteNoteRequest(BaseModel):
+    filename: str
+
+
+@commands.command()
+async def delete_note(body: DeleteNoteRequest) -> None:
+    """Delete a note file."""
+    from gera.service import notes
+
+    notes.delete_note(get_repo(), body.filename)
+
+
 # ---------------------------------------------------------------------------
 # App entry point
 # ---------------------------------------------------------------------------

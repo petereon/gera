@@ -1,65 +1,50 @@
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAppStore } from '../../stores/useAppStore';
-import { useNoteFiltering } from '../../hooks/useNoteFiltering';
-import { InboxIcon, CalendarIcon, DocumentIcon } from '../icons/Icons';
+import { InboxIcon, CalendarIcon, DocumentIcon, ChevronLeftIcon, ChevronRightIcon } from '../icons/Icons';
 
 export function Sidebar() {
+  const [expanded, setExpanded] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname.split('/')[1] || 'tasks';
-  
-  const tasks = useAppStore((state) => state.tasks);
-  const notes = useAppStore((state) => state.notes);
-
-  // Calculate floating notes for badge
-  const { filteredNotes } = useNoteFiltering(notes, "");
-
-  const handleNavClick = (view: string) => {
-    navigate(`/${view}`);
-  };
 
   return (
-    <div className="left-column">
-      {/* Tasks Block */}
-      <div
-        className={`sidebar-block ${currentPath === "tasks" ? "active" : ""}`}
-        onClick={() => handleNavClick("tasks")}
+    <div className={`left-column${expanded ? ' expanded' : ''}`}>
+      {/* Expand/collapse toggle — visually distinct from nav islands */}
+      <button
+        className="sidebar-toggle-btn"
+        onClick={() => setExpanded(!expanded)}
+        title={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
       >
-        <div className="sidebar-block-icon">
-          <InboxIcon />
-        </div>
-        <div className="sidebar-block-label">Tasks</div>
-        {tasks.length > 0 && (
-          <div className="sidebar-block-badge">{tasks.length}</div>
-        )}
+        {expanded ? <ChevronLeftIcon /> : <ChevronRightIcon />}
+      </button>
+
+      {/* Tasks island */}
+      <div
+        className={`sidebar-block ${currentPath === 'tasks' ? 'active' : ''}`}
+        onClick={() => navigate('/tasks')}
+      >
+        <div className="sidebar-block-icon"><InboxIcon /></div>
+        <span className="sidebar-block-label">Tasks</span>
       </div>
 
-      {/* Notes Block */}
+      {/* Notes island */}
       <div
-        className={`sidebar-block ${currentPath === "notes" ? "active" : ""}`}
-        onClick={() => handleNavClick("notes")}
+        className={`sidebar-block ${currentPath === 'notes' ? 'active' : ''}`}
+        onClick={() => navigate('/notes')}
       >
-        <div className="sidebar-block-icon">
-          <DocumentIcon />
-        </div>
-        <div className="sidebar-block-label">Notes</div>
-        {filteredNotes.length > 0 && (
-          <div className="sidebar-block-badge">{filteredNotes.length}</div>
-        )}
+        <div className="sidebar-block-icon"><DocumentIcon /></div>
+        <span className="sidebar-block-label">Notes</span>
       </div>
 
-      {/* Calendar Block */}
+      {/* Calendar island */}
       <div
-        className={`sidebar-block ${currentPath === "calendar" ? "active" : ""}`}
-        onClick={() => handleNavClick("calendar")}
+        className={`sidebar-block ${currentPath === 'calendar' ? 'active' : ''}`}
+        onClick={() => navigate('/calendar')}
       >
-        <div className="sidebar-block-icon">
-          <CalendarIcon />
-        </div>
-        <div className="sidebar-block-label">Calendar</div>
+        <div className="sidebar-block-icon"><CalendarIcon /></div>
+        <span className="sidebar-block-label">Calendar</span>
       </div>
-
-      
     </div>
   );
 }

@@ -1,15 +1,24 @@
 import { create } from 'zustand';
 
+export type CalendarView = 'week' | '3day' | 'day';
+
+export const VIEW_DAYS: Record<CalendarView, number> = {
+  week: 7,
+  '3day': 3,
+  day: 1,
+};
+
 export interface CalendarStore {
-  currentWeekStart: Date;
-  setCurrentWeekStart: (date: Date) => void;
-  goToPreviousWeek: () => void;
-  goToNextWeek: () => void;
+  currentPeriodStart: Date;
+  calendarView: CalendarView;
+  setCurrentPeriodStart: (date: Date) => void;
+  setCalendarView: (view: CalendarView) => void;
+  goToPrevious: () => void;
+  goToNext: () => void;
   goToToday: () => void;
 }
 
-export const useCalendarStore = create<CalendarStore>((set) => {
-  // Calculate Monday of current week
+export const useCalendarStore = create<CalendarStore>((set, get) => {
   const getMonday = (date: Date) => {
     const d = new Date(date);
     const day = d.getDay();
@@ -18,23 +27,38 @@ export const useCalendarStore = create<CalendarStore>((set) => {
   };
 
   const today = new Date();
-  const currentWeekStart = getMonday(today);
 
   return {
-    currentWeekStart,
-    setCurrentWeekStart: (date) => set({ currentWeekStart: date }),
-    goToPreviousWeek: () =>
+    currentPeriodStart: getMonday(today),
+    calendarView: 'week',
+    setCurrentPeriodStart: (date) => set({ currentPeriodStart: date }),
+    setCalendarView: (view) => {
+      // When switching to week view snap to Monday
+      if (view === 'week') {
+        const monday = getMonday(get().currentPeriodStart);
+        set({ calendarView: view, currentPeriodStart: monday });
+      } else {
+        set({ calendarView: view });
+      }
+    },
+    goToPrevious: () =>
       set((state) => {
-        const prev = new Date(state.currentWeekStart);
-        prev.setDate(prev.getDate() - 7);
-        return { currentWeekStart: prev };
+        const days = VIEW_DAYS[state.calendarView];
+        const prev = new Date(state.currentPeriodStart);
+        prev.setDate(prev.getDate() - days);
+        return { currentPeriodStart: prev };
       }),
-    goToNextWeek: () =>
+    goToNext: () =>
       set((state) => {
-        const next = new Date(state.currentWeekStart);
-        next.setDate(next.getDate() + 7);
-        return { currentWeekStart: next };
+        const days = VIEW_DAYS[state.calendarView];
+        const next = new Date(state.currentPeriodStart);
+        next.setDate(next.getDate() + days);
+        return { currentPeriodStart: next };
       }),
-    goToToday: () => set({ currentWeekStart: getMonday(today) }),
+    goToToday: () => {
+      const view = get().calendarView;
+      const start = view === 'week' ? getMonday(today) : new Date(today);
+      set({ currentPeriodStart: start });
+    },
   };
 });

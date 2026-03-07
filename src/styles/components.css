@@ -33,6 +33,34 @@
   margin-bottom: 0;
 }
 
+/* 2-position view-mode toggle (grouped / timeline) */
+.tasks-view-toggle {
+  display: flex;
+  background: var(--surface-secondary);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.tasks-view-toggle-btn {
+  padding: 3px 10px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
+}
+
+.tasks-view-toggle-btn.active {
+  background: #ffffff;
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
 .icon-btn {
   width: 32px;
   height: 32px;
@@ -50,6 +78,168 @@
 .icon-btn:hover {
   background: var(--surface-secondary);
   color: var(--text-secondary);
+}
+
+.icon-btn--accent {
+  background: var(--accent-blue);
+  color: #ffffff;
+}
+
+.icon-btn--accent:hover {
+  background: #4a8ac4;
+  color: #ffffff;
+}
+
+/* ============================================
+   MODAL
+   ============================================ */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-panel {
+  background: var(--surface-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  padding: 24px;
+  width: 400px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--surface-secondary);
+  background: var(--surface-primary);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  color: var(--text-primary);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.modal-input:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px var(--accent-blue-subtle);
+}
+
+.modal-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.modal-input:disabled {
+  opacity: 0.6;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.modal-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.modal-btn--cancel {
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+}
+
+.modal-btn--cancel:hover {
+  background: var(--surface-tertiary, #ddd);
+}
+
+.modal-btn--submit {
+  background: var(--accent-blue);
+  color: white;
+}
+
+.modal-btn--submit:hover {
+  opacity: 0.9;
+}
+
+.modal-btn--submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-btn--danger {
+  background: #ef4444;
+  color: white;
+}
+
+.modal-btn--danger:hover {
+  background: #b91c1c;
+}
+
+.modal-message {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ============================================
+   TASK MODAL EVENT SECTION
+   ============================================ */
+.task-modal-events {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.task-modal-events-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+}
+
+.task-modal-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.task-modal-events-empty {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.metadata-chip--readonly {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.metadata-chip--readonly:hover {
+  background: var(--surface-accent);
 }
 
 /* ============================================
@@ -141,6 +331,11 @@
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+  flex: 1;
+}
+
+.task-text {
+  cursor: pointer;
 }
 
 .task-tags {
@@ -180,10 +375,62 @@
   height: 12px;
 }
 
+/* Source note label / chip pinned to right of task row */
+.task-source-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  align-self: flex-start;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.task-source-label svg {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
+}
+
+.task-source-label:hover {
+  color: var(--accent-blue);
+  background: var(--surface-secondary);
+}
+
+.task-source-label:hover svg {
+  opacity: 1;
+}
+
+.task-source-label--static {
+  cursor: default;
+  pointer-events: none;
+}
+
 .task-item span.completed,
 .task-content span.completed {
   text-decoration: line-through;
   color: var(--text-tertiary);
+}
+
+/* Go-to-source button — removed, functionality merged into .task-source-label */
+
+/* Highlight animation for focused task line in editor */
+@keyframes task-highlight-fade {
+  0%   { background-color: rgba(250, 204, 21, 0.4); }
+  70%  { background-color: rgba(250, 204, 21, 0.15); }
+  100% { background-color: transparent; }
+}
+
+.task-line-highlight {
+  animation: task-highlight-fade 2.5s ease-out forwards;
+  border-radius: 4px;
 }
 
 /* ============================================

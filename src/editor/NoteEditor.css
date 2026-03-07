@@ -22,8 +22,41 @@
 .note-editor .mdxeditor-toolbar {
   background: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
-  padding: 8px 12px;
+  padding: 8px 44px 8px 12px;
   gap: 4px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  position: relative;
+}
+
+/* Close button — always top-right of the toolbar, regardless of wrapping */
+.note-editor .mdxeditor-toolbar .note-editor-close-btn {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  margin-left: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.note-editor .mdxeditor-toolbar .note-editor-close-btn:hover {
+  background: #b91c1c !important;
+  border-color: transparent;
+  color: #ffffff !important;
 }
 
 .note-editor .mdxeditor-toolbar button {

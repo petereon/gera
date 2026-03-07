@@ -40,6 +40,21 @@ from gera.utils import body_preview
 
 logger = logging.getLogger(__name__)
 
+
+def _sanitize_content(content: str) -> str:
+    """Remove HTML-encoded spaces and strip trailing whitespace from every line.
+
+    MDXEditor (and other HTML-aware editors) can produce ``&#x20;`` entities
+    at the end of lines.  These must never reach the on-disk markdown files.
+    """
+    # Replace HTML space entity with a literal space first so mid-line
+    # occurrences become readable text rather than disappearing.
+    content = content.replace("&#x20;", " ")
+    # Strip any trailing spaces/tabs from every line.
+    content = re.sub(r"[ \t]+$", "", content, flags=re.MULTILINE)
+    return content
+
+
 _DB_URI = "file::memory:?cache=shared"
 
 DATA_CHANGED_EVENT = "gera://data-changed"
@@ -1283,13 +1298,13 @@ class Repository:
 
         full_content = serialize_frontmatter(
             frontmatter,
-            f"# {Path(note_filename).stem}\n\n{content}",
+            content,
         )
 
         path = note_file(self._data_root, note_filename)
         if path.exists():
             raise FileExistsError(f"Note already exists: {path}")
-        path.write_text(full_content, encoding="utf-8")
+        path.write_text(_sanitize_content(full_content), encoding="utf-8")
         logger.info("Created note file: %s", path)
 
         self.reload_notes(files=[note_filename])
@@ -1317,7 +1332,7 @@ class Repository:
         path = note_file(self._data_root, note_filename)
         if not path.exists():
             raise FileNotFoundError(f"Note not found: {path}")
-        path.write_text(content, encoding="utf-8")
+        path.write_text(_sanitize_content(content), encoding="utf-8")
         logger.info("Updated note file: %s", path)
 
         self.reload_notes(files=[note_filename])
@@ -1377,7 +1392,7 @@ class Repository:
         path = project_file(self._data_root, project_filename)
         if path.exists():
             raise FileExistsError(f"Project already exists: {path}")
-        path.write_text(full_content, encoding="utf-8")
+        path.write_text(_sanitize_content(full_content), encoding="utf-8")
         logger.info("Created project file: %s", path)
 
         self.reload_projects(files=[project_filename])
@@ -1406,7 +1421,7 @@ class Repository:
         path = project_file(self._data_root, project_filename)
         if not path.exists():
             raise FileNotFoundError(f"Project not found: {path}")
-        path.write_text(content, encoding="utf-8")
+        path.write_text(_sanitize_content(content), encoding="utf-8")
         logger.info("Updated project file: %s", path)
 
         self.reload_projects(files=[project_filename])
@@ -1583,7 +1598,7 @@ class Repository:
         toggled_marker = " " if marker in "xX" else "x"
         lines[idx] = f"{indent}{bullet} [{toggled_marker}] {task_text}{newline}"
 
-        path.write_text("".join(lines), encoding="utf-8")
+        path.write_text(_sanitize_content("".join(lines)), encoding="utf-8")
         logger.info("Toggled task at %s:%d", source_file, line_number)
 
         # Reload the entity that owns this task
@@ -1594,6 +1609,114 @@ class Repository:
         else:
             self.reload_tasks()
         self._emit_data_changed([{"entity": "tasks", "ids": None}])
+
+    def delete_task(self, source_file: str, line_number: int) -> None:
+        """Remove a task line from its source file, reload, and emit.
+
+        Args:
+            source_file: Relative path to the source file.
+            line_number: 1-based line number of the task.
+        """
+        path = self._data_root / source_file
+        if not path.exists():
+            raise FileNotFoundError(f"Source file not found: {path}")
+
+        lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+        idx = line_number - 1
+        if idx < 0 or idx >= len(lines):
+            raise IndexError(f"Line {line_number} out of range in {source_file}")
+
+        match = re.match(r"^\s*[-*+] \[[ xX]\] ", lines[idx])
+        if match is None:
+            raise ValueError(f"Line {line_number} is not a task: {lines[idx]!r}")
+
+        del lines[idx]
+        path.write_text(_sanitize_content("".join(lines)), encoding="utf-8")
+        logger.info("Deleted task at %s:%d", source_file, line_number)
+
+        if source_file.startswith("notes/"):
+            self.reload_notes()
+        elif source_file.startswith("projects/"):
+            self.reload_projects()
+        else:
+            self.reload_tasks()
+        self._emit_data_changed([{"entity": "tasks", "ids": None}])
+
+    def update_task(self, source_file: str, line_number: int, new_text: str) -> None:
+        """Rewrite the text of an existing task line, preserving its completion state.
+
+        Args:
+            source_file: Relative path to the source file (e.g. ``tasks.md``).
+            line_number: 1-based line number of the task in the file.
+            new_text: New task description (without the ``- [ ] `` prefix).
+        """
+        new_text = new_text.strip()
+        if not new_text:
+            raise ValueError("Task text must not be empty")
+
+        path = self._data_root / source_file
+        if not path.exists():
+            raise FileNotFoundError(f"Source file not found: {path}")
+
+        lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+        idx = line_number - 1
+        if idx < 0 or idx >= len(lines):
+            raise IndexError(f"Line {line_number} out of range in {source_file}")
+
+        line = lines[idx]
+        line_no_newline = line.rstrip("\n")
+        newline = line[len(line_no_newline):]
+        match = re.match(r"^(\s*)([-*+]) \[([ xX])\] .+$", line_no_newline)
+        if match is None:
+            raise ValueError(f"Line {line_number} is not a task: {line!r}")
+
+        indent, bullet, marker = match.group(1), match.group(2), match.group(3)
+        lines[idx] = f"{indent}{bullet} [{marker}] {new_text}{newline}"
+
+        path.write_text(_sanitize_content("".join(lines)), encoding="utf-8")
+        logger.info("Updated task at %s:%d", source_file, line_number)
+
+        if source_file.startswith("notes/"):
+            self.reload_notes()
+        elif source_file.startswith("projects/"):
+            self.reload_projects()
+        else:
+            self.reload_tasks()
+        self._emit_data_changed([{"entity": "tasks", "ids": None}])
+
+    def create_task(self, text: str) -> TaskEntity:
+        """Append a new uncompleted task to ``tasks.md``, reload, and emit.
+
+        Args:
+            text: The task text (without the ``- [ ]`` prefix).
+
+        Returns:
+            The newly created TaskEntity from the repository.
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Task text must not be empty")
+
+        path = tasks_file(self._data_root)
+        existing = path.read_text(encoding="utf-8") if path.exists() else ""
+
+        # Ensure the new task starts on its own line
+        if existing and not existing.endswith("\n"):
+            existing += "\n"
+
+        new_line = f"- [ ] {text}\n"
+        path.write_text(_sanitize_content(existing + new_line), encoding="utf-8")
+        logger.info("Created task: %s", text)
+
+        self.reload_tasks()
+        self._emit_data_changed([{"entity": "tasks", "ids": None}])
+
+        # Return the last task from tasks.md (the one we just appended)
+        tasks = self.list_tasks()
+        floating = [t for t in tasks if t.source_file == "tasks.md"]
+        if not floating:
+            raise RuntimeError("Task not found after creation")
+        return floating[-1]
 
     # ------------------------------------------------------------------
     # Lifecycle

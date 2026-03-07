@@ -53,8 +53,8 @@ export function useTaskFiltering(
     return map;
   }, [tasks, events]);
 
-  // Tasks with no event associations
-  const standaloneTasks = useMemo(
+  // Tasks with no event associations (shown in "Other Tasks" group)
+  const otherTasks = useMemo(
     () => tasks.filter((t) => t.event_ids.length === 0),
     [tasks]
   );
@@ -68,10 +68,10 @@ export function useTaskFiltering(
     [events, tasksByEventId]
   );
 
-  // Apply search filter to standalone tasks (local filtering)
-  const filteredStandaloneTasks = useMemo(
-    () => standaloneTasks.filter((t) => filterTask(t, search)),
-    [standaloneTasks, search, filterTask]
+  // Apply search filter to other tasks (local filtering)
+  const filteredOtherTasks = useMemo(
+    () => otherTasks.filter((t) => filterTask(t, search)),
+    [otherTasks, search, filterTask]
   );
 
   // Apply search filter to events with tasks (local filtering)
@@ -94,7 +94,7 @@ export function useTaskFiltering(
       return;
     }
 
-    const localResultCount = filteredStandaloneTasks.length + filteredEventsWithTasks.length;
+    const localResultCount = filteredOtherTasks.length + filteredEventsWithTasks.length;
     
     // Only search backend if we have few local results
     if (localResultCount < 5) {
@@ -113,18 +113,33 @@ export function useTaskFiltering(
 
       return () => clearTimeout(timer);
     }
-  }, [search, filteredStandaloneTasks, filteredEventsWithTasks]);
+  }, [search, filteredOtherTasks, filteredEventsWithTasks]);
 
   // Merge local and backend results, deduping by source_file:line_number:text_hash
-  const mergedStandaloneTasks = useMemo(() => {
-    if (backendResults.length === 0) return filteredStandaloneTasks;
-    
-    // Get all tasks (local + backend)
-    const allTasks = [...filteredStandaloneTasks, ...backendResults.filter(t => t.event_ids.length === 0)];
-    
-    // Deduplicate using source_file + line_number + text_hash
+  const mergedOtherTasks = useMemo(() => {
+    if (backendResults.length === 0) return filteredOtherTasks;
+    const allTasks = [...filteredOtherTasks, ...backendResults.filter((t) => t.event_ids.length === 0)];
     return deduplicate(allTasks, getTaskDedupeKey);
-  }, [filteredStandaloneTasks, backendResults]);
+  }, [filteredOtherTasks, backendResults]);
+
+  // Timeline: all tasks sorted by earliest associated event date; unscheduled last
+  const timelineTasks = useMemo(() => {
+    const allFiltered = tasks.filter((t) => filterTask(t, search));
+    const merged = backendResults.length > 0
+      ? deduplicate([...allFiltered, ...backendResults], getTaskDedupeKey)
+      : allFiltered;
+
+    const getEarliestMs = (task: TaskEntity): number => {
+      if (!task.event_ids.length) return Infinity;
+      const dates = task.event_ids
+        .map((id) => events.find((e) => e.id === id)?.from_)
+        .filter((d): d is string => !!d)
+        .map((d) => new Date(d).getTime());
+      return dates.length ? Math.min(...dates) : Infinity;
+    };
+
+    return [...merged].sort((a, b) => getEarliestMs(a) - getEarliestMs(b));
+  }, [tasks, events, search, filterTask, backendResults]);
 
   // Helper to get tasks for a specific event
   const getTasksForEvent = useCallback(
@@ -134,7 +149,8 @@ export function useTaskFiltering(
 
   return {
     filteredEventsWithTasks,
-    filteredStandaloneTasks: mergedStandaloneTasks,
+    filteredOtherTasks: mergedOtherTasks,
+    timelineTasks,
     getTasksForEvent,
     isSearching,
   };

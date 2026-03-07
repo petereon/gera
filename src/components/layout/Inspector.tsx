@@ -1,5 +1,5 @@
+import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../stores/useAppStore';
-import { MarkdownPreview } from '../../MarkdownPreview';
 import { 
   VideoIcon, 
   ClockIcon, 
@@ -8,21 +8,23 @@ import {
   DocumentIcon 
 } from '../icons/Icons';
 import { Checkbox } from '../shared/Checkbox';
+import { NoteTile } from '../notes/NoteTile';
 import { cleanTaskDisplay } from '../../utils/taskFormatting';
 import { formatEventDate, formatEventTime } from '../../utils/dateFormatting';
+import { toggleTask } from '../../api';
 
 interface InspectorProps {
   isVisible: boolean;
 }
 
 export function Inspector({ isVisible }: InspectorProps) {
+  const navigate = useNavigate();
   const selectedEvent = useAppStore((state) => state.selectedEvent);
-  const selectedNote = useAppStore((state) => state.selectedNote);
   const setSelectedNote = useAppStore((state) => state.setSelectedNote);
+  const setReturnView = useAppStore((state) => state.setReturnView);
   const notes = useAppStore((state) => state.notes);
   const tasks = useAppStore((state) => state.tasks);
 
-  // Calculate linked notes and tasks
   const linkedNotes = selectedEvent
     ? notes.filter((n) => n.event_ids.includes(selectedEvent.id))
     : [];
@@ -85,21 +87,21 @@ export function Inspector({ isVisible }: InspectorProps) {
         )}
       </div>
 
-      {/* Linked Notes */}
+      {/* Linked Notes — shown as tiles, click navigates to notes view */}
       {linkedNotes.length > 0 && (
         <div className="island-pane linked-tasks-pane">
           <div className="section-label">LINKED NOTES</div>
-          <div className="task-groups">
+          <div className="notes-grid notes-grid--compact">
             {linkedNotes.map((n) => (
-              <div
+              <NoteTile
                 key={n.filename}
-                className="task-item"
-                style={{ cursor: "pointer" }}
-                onClick={() => setSelectedNote(n)}
-              >
-                <DocumentIcon />
-                <span>{n.title}</span>
-              </div>
+                note={n}
+                onOpen={() => {
+                  setSelectedNote(n);
+                  setReturnView('/calendar');
+                  navigate('/notes');
+                }}
+              />
             ))}
           </div>
         </div>
@@ -112,7 +114,10 @@ export function Inspector({ isVisible }: InspectorProps) {
           <div className="task-groups">
             {linkedTasks.map((t, i) => (
               <div key={i} className="task-item">
-                <Checkbox checked={t.completed} />
+                <Checkbox
+                  checked={t.completed}
+                  onChange={() => toggleTask(t.source_file, t.line_number).catch(console.error)}
+                />
                 <span className={t.completed ? "completed" : ""}>{cleanTaskDisplay(t)}</span>
               </div>
             ))}
@@ -120,17 +125,6 @@ export function Inspector({ isVisible }: InspectorProps) {
         </div>
       )}
 
-      {/* Note Preview */}
-      {selectedNote && (
-        <div className="island-pane note-preview-pane">
-          <div className="section-label">NOTE PREVIEW</div>
-          <MarkdownPreview
-            content={selectedNote.raw_content}
-            showTitle
-            showMeta
-          />
-        </div>
-      )}
     </div>
   );
 }

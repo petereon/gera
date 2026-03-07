@@ -27,6 +27,14 @@ export interface AppStore {
   notesSearch: string;
   setTasksSearch: (search: string) => void;
   setNotesSearch: (search: string) => void;
+
+  // Cross-reference navigation
+  focusLine: number | null;
+  setFocusLine: (line: number | null) => void;
+
+  // Return-to navigation (e.g. open note from calendar, return on close)
+  returnView: string | null;
+  setReturnView: (view: string | null) => void;
 }
 
 export const useAppStore = create<AppStore>((set) => ({
@@ -55,4 +63,12 @@ export const useAppStore = create<AppStore>((set) => ({
   notesSearch: '',
   setTasksSearch: (tasksSearch) => set({ tasksSearch }),
   setNotesSearch: (notesSearch) => set({ notesSearch }),
+
+  // Cross-reference navigation
+  focusLine: null,
+  setFocusLine: (focusLine) => set({ focusLine }),
+
+  // Return-to navigation
+  returnView: null,
+  setReturnView: (returnView) => set({ returnView }),
 }));

@@ -40,6 +40,7 @@ import '@mdxeditor/editor/style.css';
 import { getNoteContent, updateNoteContent } from '../api';
 import { parseFrontmatter } from '../utils/frontmatter';
 import { geraRefsPlugin } from './geraRefsPlugin';
+import { useAppStore } from '../stores/useAppStore';
 import './NoteEditor.css';
 
 export interface NoteEditorProps {
@@ -48,6 +49,7 @@ export interface NoteEditorProps {
   eventIds?: string[];
   projectIds?: string[];
   onSave?: (content: string) => void;
+  onClose?: () => void;
   autoSave?: boolean;
   autoSaveDelay?: number;
 }
@@ -67,6 +69,7 @@ export function NoteEditor({
   eventIds = [],
   projectIds = [],
   onSave,
+  onClose,
   autoSave = true,
   autoSaveDelay = 1000,
 }: NoteEditorProps): JSX.Element {
@@ -74,6 +77,43 @@ export function NoteEditor({
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Tracks the last body content we wrote, so external reload can skip our own saves
   const lastSavedBodyRef = useRef<string>(content);
+
+  const focusLine = useAppStore((state) => state.focusLine);
+  const setFocusLine = useAppStore((state) => state.setFocusLine);
+
+  // Scroll to target task when navigating via cross-reference
+  useEffect(() => {
+    if (focusLine === null) return;
+
+    let attempts = 0;
+    const MAX_ATTEMPTS = 10;
+    const INTERVAL_MS = 120;
+
+    const tryScroll = () => {
+      const container = document.querySelector('.mdxeditor-root-contenteditable');
+      if (!container) {
+        if (++attempts < MAX_ATTEMPTS) { timerId = window.setTimeout(tryScroll, INTERVAL_MS); }
+        else { setFocusLine(null); }
+        return;
+      }
+      // MDXEditor (Lexical) renders task-list items as <li role="checkbox">
+      const taskItems = container.querySelectorAll<HTMLElement>('li[role="checkbox"]');
+      const target = taskItems[focusLine] ?? null;
+      if (!target) {
+        if (++attempts < MAX_ATTEMPTS) { timerId = window.setTimeout(tryScroll, INTERVAL_MS); }
+        else { setFocusLine(null); }
+        return;
+      }
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.add('task-line-highlight');
+      setTimeout(() => target.classList.remove('task-line-highlight'), 2500);
+      setFocusLine(null);
+    };
+
+    // Start first attempt after a short delay so MDXEditor has time to mount
+    let timerId = window.setTimeout(tryScroll, 200);
+    return () => window.clearTimeout(timerId);
+  }, [focusLine, setFocusLine]);
 
   // Debounced save handler
   const handleAutoSave = useCallback(
@@ -184,6 +224,16 @@ export function NoteEditor({
           <InsertThematicBreak />
           <Separator />
           <InsertTable />
+          {onClose && (
+            <button
+              className="note-editor-close-btn"
+              onClick={onClose}
+              aria-label="Close note"
+              title="Close note"
+            >
+              ✕
+            </button>
+          )}
         </>
       ),
     }),
