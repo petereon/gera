@@ -1,7 +1,7 @@
 # Gera
 
 > [!NOTE]
-> Gera is in pre-alpha state and under heavy development, it is mostly feature-complete as far as basic functionality goes. Bugs are expected and undoubtly numerous. Gera currently doesn't have nice packaging and requires you to be technical to get it to run. Refer to [Building Gera](#building-gera) for details.
+> Gera is in pre-alpha state and under heavy development, it is mostly feature-complete as far as basic functionality goes. Bugs are expected and undoubtly numerous. Gera currently doesn't have a nice packaging and requires you to be technical to get it to run. Refer to [Building Gera](#building-gera) for details.
 
 Gera is a unified workspace that connects your schedule, tasks, and knowledge. It organizes your work locally without restricting your data to proprietary formats or cloud subscriptions.
 
