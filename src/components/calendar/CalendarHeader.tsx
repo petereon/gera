@@ -11,13 +11,15 @@ const VIEW_LABELS: Record<CalendarView, string> = {
 interface CalendarHeaderProps {
   monthYear: string;
   calendarView: CalendarView;
+  effectiveView: CalendarView;
   onViewChange: (view: CalendarView) => void;
   onPrevious: () => void;
   onNext: () => void;
   onToday: () => void;
+  onRefresh: () => void;
 }
 
-export function CalendarHeader({ monthYear, calendarView, onViewChange, onPrevious, onNext, onToday }: CalendarHeaderProps) {
+export function CalendarHeader({ monthYear, calendarView, effectiveView, onViewChange, onPrevious, onNext, onToday, onRefresh }: CalendarHeaderProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -37,12 +39,18 @@ export function CalendarHeader({ monthYear, calendarView, onViewChange, onPrevio
         <h2 className="calendar-month">{monthYear}</h2>
       </div>
       <div className="calendar-header-right">
+        <button className="refresh-btn" onClick={onRefresh} title="Refresh events">
+          Refresh
+        </button>
         <button className="today-btn" onClick={onToday}>Today</button>
 
         {/* View picker */}
         <div className="cal-view-picker" ref={ref}>
           <button className="cal-view-btn" onClick={() => setOpen((o) => !o)}>
-            {VIEW_LABELS[calendarView]}
+            {VIEW_LABELS[effectiveView]}
+            {effectiveView !== calendarView && (
+              <span style={{ fontSize: '10px', opacity: 0.6, marginLeft: 2 }}>auto</span>
+            )}
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polyline points="6 9 12 15 18 9" />
             </svg>

@@ -12,6 +12,9 @@ use tauri::utils::platform::resource_dir;
 use gera_lib::{ext_mod, tauri_generate_context};
 
 fn main() -> Result<Infallible, Box<dyn Error>> {
+    // NOTE: GERA_APP_DATA_DIR is set inside the Tauri setup hook (lib.rs)
+    // once the AppHandle is available, before Python commands are invoked.
+
     let py_env = if cfg!(dev) {
         // `cfg(dev)` is set by `tauri-build` in `build.rs`, which means running with `tauri dev`,
         // see: <https://github.com/tauri-apps/tauri/pull/8937>.

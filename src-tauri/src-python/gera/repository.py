@@ -25,7 +25,7 @@ from pathlib import Path
 
 import yaml
 
-from gera.entities import EventEntity, NoteEntity, ProjectEntity, TaskEntity, TimeReference
+from gera.entities import EventEntity, EventMetadata, NoteEntity, ProjectEntity, TaskEntity, TimeReference
 from gera.frontmatter import parse_frontmatter, serialize_frontmatter
 from gera.paths import (
     events_file,
@@ -159,7 +159,8 @@ class Repository:
                     name        TEXT NOT NULL,
                     description TEXT NOT NULL DEFAULT '',
                     participants TEXT NOT NULL DEFAULT '[]',  -- JSON array
-                    location    TEXT NOT NULL DEFAULT ''
+                    location    TEXT NOT NULL DEFAULT '',
+                    metadata    TEXT NOT NULL DEFAULT '{}'   -- JSON-encoded EventMetadata
                 );
 
                 CREATE TABLE IF NOT EXISTS notes (
@@ -217,6 +218,13 @@ class Repository:
                 );
                 """
             )
+            # Migrations: add metadata column if it doesn't exist (for existing databases)
+            try:
+                db.execute("ALTER TABLE events ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'")
+                db.commit()
+            except db.OperationalError:
+                # Column already exists, continue
+                pass
 
     # ------------------------------------------------------------------
     # Connection helper
@@ -236,8 +244,10 @@ class Repository:
         """Parse ``events.yaml`` and return a list of event entities."""
         path = events_file(self._data_root)
         if not path.exists():
+            logger.debug("Events file not found: %s", path)
             return []
 
+        logger.debug("Reading events from disk: %s", path)
         try:
             raw = path.read_text(encoding="utf-8")
             data = yaml.safe_load(raw)
@@ -246,13 +256,23 @@ class Repository:
             return []
 
         if not isinstance(data, dict) or "events" not in data:
+            logger.warning("Events file is malformed or missing 'events' key: %s", path)
             return []
 
         events: list[EventEntity] = []
+        skipped = 0
         for entry in data["events"]:
             if not isinstance(entry, dict):
+                skipped += 1
                 continue
             try:
+                # Parse metadata from YAML, defaulting to empty metadata for backward compat
+                metadata_dict = entry.get("metadata", {})
+                if isinstance(metadata_dict, dict):
+                    metadata = EventMetadata(**metadata_dict)
+                else:
+                    metadata = EventMetadata()
+
                 events.append(
                     EventEntity(
                         id=str(entry.get("id", "")),
@@ -263,16 +283,20 @@ class Repository:
                         description=str(entry.get("description", "")),
                         participants=[str(p) for p in entry.get("participants", [])],
                         location=str(entry.get("location", "")),
+                        metadata=metadata,
                     )
                 )
             except Exception:
                 logger.warning("Skipping malformed event entry: %s", entry)
+                skipped += 1
 
+        logger.debug("Loaded %d events from disk (%d skipped)", len(events), skipped)
         return events
 
     def _read_note_file(self, md_file: Path) -> tuple[NoteEntity, list[TaskEntity]]:
         """Read a single note markdown file and return (note, tasks)."""
         note_rel = md_file.relative_to(notes_dir(self._data_root)).as_posix()
+        logger.debug("Reading note file: %s", note_rel)
         raw = md_file.read_text(encoding="utf-8")
         fm, body = parse_frontmatter(raw)
         title = extract_title(body)
@@ -290,16 +314,20 @@ class Repository:
             project_ids=inherited_projects,
             raw_content=raw,
         )
+        logger.debug("Note file loaded: %s (title: %s, %d tasks)", note_rel, title, len(note_tasks))
         return note, note_tasks
 
     def _read_notes_from_disk(self) -> tuple[list[NoteEntity], list[TaskEntity]]:
         """Read all ``.md`` files from ``notes/`` and return note entities."""
         ndir = notes_dir(self._data_root)
         if not ndir.is_dir():
+            logger.debug("Notes directory not found: %s", ndir)
             return [], []
 
+        logger.debug("Reading notes from directory: %s", ndir)
         notes: list[NoteEntity] = []
         all_tasks: list[TaskEntity] = []
+        failed = 0
         for md_file in sorted(ndir.glob("**/*.md")):
             try:
                 note, tasks = self._read_note_file(md_file)
@@ -307,12 +335,15 @@ class Repository:
                 all_tasks.extend(tasks)
             except Exception:
                 logger.warning("Failed to read note %s", md_file, exc_info=True)
+                failed += 1
 
+        logger.info("Loaded %d notes (%d tasks, %d failed)", len(notes), len(all_tasks), failed)
         return notes, all_tasks
 
     def _read_project_file(self, md_file: Path) -> tuple[ProjectEntity, list[TaskEntity]]:
         """Read a single project markdown file and return (project, tasks)."""
         project_rel = md_file.relative_to(projects_dir(self._data_root)).as_posix()
+        logger.debug("Reading project file: %s", project_rel)
         raw = md_file.read_text(encoding="utf-8")
         fm, body = parse_frontmatter(raw)
         title = extract_title(body)
@@ -331,16 +362,20 @@ class Repository:
             event_ids=inherited_events,
             raw_content=raw,
         )
+        logger.debug("Project file loaded: %s (id: %s, %d tasks)", project_rel, md_file.stem, len(project_tasks))
         return project, project_tasks
 
     def _read_projects_from_disk(self) -> tuple[list[ProjectEntity], list[TaskEntity]]:
         """Read all ``.md`` files from ``projects/`` and return project entities + tasks."""
         pdir = projects_dir(self._data_root)
         if not pdir.is_dir():
+            logger.debug("Projects directory not found: %s", pdir)
             return [], []
 
+        logger.debug("Reading projects from directory: %s", pdir)
         projects: list[ProjectEntity] = []
         all_tasks: list[TaskEntity] = []
+        failed = 0
         for md_file in sorted(pdir.glob("**/*.md")):
             try:
                 project, tasks = self._read_project_file(md_file)
@@ -348,22 +383,28 @@ class Repository:
                 all_tasks.extend(tasks)
             except Exception:
                 logger.warning("Failed to read project %s", md_file, exc_info=True)
+                failed += 1
 
+        logger.info("Loaded %d projects (%d tasks, %d failed)", len(projects), len(all_tasks), failed)
         return projects, all_tasks
 
     def _read_tasks_from_disk(self) -> list[TaskEntity]:
         """Parse ``tasks.md`` for standalone floating tasks."""
         path = tasks_file(self._data_root)
         if not path.exists():
+            logger.debug("Tasks file not found: %s", path)
             return []
 
+        logger.debug("Reading tasks from disk: %s", path)
         try:
             raw = path.read_text(encoding="utf-8")
         except Exception:
             logger.exception("Failed to read %s", path)
             return []
 
-        return self._parse_tasks_from_markdown(raw, source_file="tasks.md")
+        tasks = self._parse_tasks_from_markdown(raw, source_file="tasks.md")
+        logger.debug("Loaded %d floating tasks", len(tasks))
+        return tasks
 
     def _parse_tasks_from_markdown(
         self, text: str, source_file: str = "tasks.md"
@@ -464,12 +505,15 @@ class Repository:
         if not tasks:
             return []
 
+        logger.debug("Resolving %d tasks...", len(tasks))
         # Collect all referenced IDs for batch lookup
         all_event_ids: set[str] = set()
         all_project_ids: set[str] = set()
         for t in tasks:
             all_event_ids.update(t.event_ids)
             all_project_ids.update(t.project_ids)
+
+        logger.debug("Task references: %d unique events, %d unique projects", len(all_event_ids), len(all_project_ids))
 
         # Batch-resolve from DB
         event_map: dict[str, tuple[str, datetime, datetime]] = {}
@@ -489,6 +533,7 @@ class Repository:
                     )
                     for r in event_rows
                 }
+                logger.debug("Resolved %d/%d event references", len(event_map), len(all_event_ids))
 
             if all_project_ids:
                 project_placeholders = ",".join("?" * len(all_project_ids))
@@ -497,9 +542,11 @@ class Repository:
                     tuple(all_project_ids),
                 ).fetchall()
                 project_map = {r["id"]: r["title"] for r in project_rows}
+                logger.debug("Resolved %d/%d project references", len(project_map), len(all_project_ids))
 
         # Enrich each task
         resolved: list[TaskEntity] = []
+        unresolved_time_refs = 0
         for task in tasks:
             event_names = {
                 eid: event_map[eid][0]
@@ -518,6 +565,7 @@ class Repository:
                     target = event_map.get(ref.target_id)
                     if target is None:
                         logger.debug("Unresolved time ref target: %s", ref.target_id)
+                        unresolved_time_refs += 1
                         continue
                     _name, from_dt, to_dt = target
                     offset = self._compute_offset(ref.amount, ref.unit)
@@ -536,6 +584,10 @@ class Repository:
                     }
                 )
             )
+        
+        if unresolved_time_refs > 0:
+            logger.debug("Tasks with unresolved time references: %d", unresolved_time_refs)
+        logger.debug("Task resolution complete: %d tasks resolved", len(resolved))
         return resolved
 
     @staticmethod
@@ -644,12 +696,13 @@ class Repository:
 
     def reload_events(self) -> None:
         """Reload only the events table from disk."""
+        logger.debug("Reloading events table from disk")
         events = self._read_events_from_disk()
         with self._conn() as db:
             db.execute("DELETE FROM events")
             db.executemany(
-                "INSERT INTO events (id, source, from_, to_, name, description, participants, location) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO events (id, source, from_, to_, name, description, participants, location, metadata) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [
                     (
                         e.id,
@@ -660,13 +713,14 @@ class Repository:
                         e.description,
                         json.dumps(e.participants),
                         e.location,
+                        json.dumps(e.metadata.model_dump(mode="json")),
                     )
                     for e in events
                 ],
             )
             db.execute("INSERT INTO events_fts(events_fts) VALUES('rebuild')")
             db.commit()
-        logger.info("Reloaded events: %d", len(events))
+        logger.info("Events table reloaded: %d events", len(events))
 
     def _note_to_row(self, n: NoteEntity) -> tuple:
         return (
@@ -696,6 +750,7 @@ class Repository:
         """
         if files is None:
             # Full reload
+            logger.debug("Full reload of notes table")
             notes, note_tasks = self._read_notes_from_disk()
             with self._conn() as db:
                 db.execute("DELETE FROM notes")
@@ -704,8 +759,10 @@ class Repository:
                 db.commit()
             note_sources = {f"notes/{n.filename}" for n in notes}
             self._replace_tasks(note_sources, note_tasks)
+            logger.info("Notes table reloaded (full): %d notes, %d tasks", len(notes), len(note_tasks))
         else:
             # Partial reload — only the specified files
+            logger.debug("Partial reload of notes: %s", files)
             ndir = notes_dir(self._data_root)
             all_note_tasks: list[TaskEntity] = []
             source_files: set[str] = set()
@@ -719,15 +776,18 @@ class Repository:
                             note, tasks = self._read_note_file(md_path)
                             db.execute(self._NOTE_INSERT_SQL, self._note_to_row(note))
                             all_note_tasks.extend(tasks)
+                            logger.debug("Reloaded note: %s", filename)
                         except Exception:
                             logger.warning("Failed to read note %s", md_path, exc_info=True)
+                    else:
+                        logger.debug("Note file deleted: %s", filename)
                 self._rebuild_notes_fts(db)
                 db.commit()
             self._replace_tasks(source_files, all_note_tasks)
+            logger.info("Notes table reloaded (partial): %d files, %d tasks", len(files), len(all_note_tasks))
 
         if resolve:
             self._resolve_all_tasks()
-        logger.info("Reloaded notes (files=%s)", files)
 
     def _project_to_row(self, p: ProjectEntity) -> tuple:
         return (
@@ -757,6 +817,7 @@ class Repository:
         """
         if files is None:
             # Full reload
+            logger.debug("Full reload of projects table")
             projects, project_tasks = self._read_projects_from_disk()
             with self._conn() as db:
                 db.execute("DELETE FROM projects")
@@ -765,8 +826,10 @@ class Repository:
                 db.commit()
             project_sources = {f"projects/{p.filename}" for p in projects}
             self._replace_tasks(project_sources, project_tasks)
+            logger.info("Projects table reloaded (full): %d projects, %d tasks", len(projects), len(project_tasks))
         else:
             # Partial reload — only the specified files
+            logger.debug("Partial reload of projects: %s", files)
             pdir = projects_dir(self._data_root)
             all_project_tasks: list[TaskEntity] = []
             source_files: set[str] = set()
@@ -781,23 +844,27 @@ class Repository:
                             project, tasks = self._read_project_file(md_path)
                             db.execute(self._PROJECT_INSERT_SQL, self._project_to_row(project))
                             all_project_tasks.extend(tasks)
+                            logger.debug("Reloaded project: %s (id: %s)", filename, project_id)
                         except Exception:
                             logger.warning("Failed to read project %s", md_path, exc_info=True)
+                    else:
+                        logger.debug("Project file deleted: %s (id: %s)", filename, project_id)
                 self._rebuild_projects_fts(db)
                 db.commit()
             self._replace_tasks(source_files, all_project_tasks)
+            logger.info("Projects table reloaded (partial): %d files, %d tasks", len(files), len(all_project_tasks))
 
         if resolve:
             self._resolve_all_tasks()
-        logger.info("Reloaded projects (files=%s)", files)
 
     def reload_tasks(self, *, resolve: bool = True) -> None:
         """Reload floating tasks from tasks.md."""
+        logger.debug("Reloading floating tasks")
         tasks = self._read_tasks_from_disk()
         self._replace_tasks({"tasks.md"}, tasks)
         if resolve:
             self._resolve_all_tasks()
-        logger.info("Reloaded floating tasks: %d", len(tasks))
+        logger.info("Floating tasks table reloaded: %d tasks", len(tasks))
 
     # ------------------------------------------------------------------
     # FTS rebuild helpers
@@ -817,6 +884,7 @@ class Repository:
 
     def _replace_tasks(self, source_files: set[str], tasks: list[TaskEntity]) -> None:
         """Delete tasks for *source_files* and insert *tasks* as replacements."""
+        logger.debug("Replacing tasks for sources: %s (%d new tasks)", source_files, len(tasks))
         with self._conn() as db:
             if source_files:
                 placeholders = ",".join("?" * len(source_files))
@@ -824,21 +892,26 @@ class Repository:
                     f"DELETE FROM tasks WHERE source_file IN ({placeholders})",
                     tuple(source_files),
                 )
+                logger.debug("Deleted old tasks from sources: %s", source_files)
             if tasks:
                 db.executemany(
                     _TASKS_INSERT_SQL,
                     [self._task_to_row(t) for t in tasks],
                 )
+                logger.debug("Inserted %d new tasks", len(tasks))
             self._rebuild_tasks_fts(db)
             db.commit()
 
     def _resolve_all_tasks(self) -> None:
         """Read all tasks from DB, resolve references, and write back."""
+        logger.debug("Starting full task resolution pass")
         with self._conn() as db:
             rows = db.execute("SELECT * FROM tasks").fetchall()
         tasks = [self._row_to_task(r) for r in rows]
         if not tasks:
+            logger.debug("No tasks to resolve")
             return
+        logger.debug("Tasks before resolution: %d", len(tasks))
         resolved = self._resolve_tasks(tasks)
         with self._conn() as db:
             db.execute("DELETE FROM tasks")
@@ -848,6 +921,7 @@ class Repository:
             )
             self._rebuild_tasks_fts(db)
             db.commit()
+        logger.info("Full task resolution complete: %d tasks resolved", len(resolved))
 
     @staticmethod
     def _normalize_page_size(limit: int | None) -> int:
@@ -927,8 +1001,18 @@ class Repository:
             limit=limit,
             cursor=cursor,
         )
-        return (
-            [
+        
+        events = []
+        for r in rows:
+            # Parse metadata, handling backward compatibility
+            metadata_json = r["metadata"] if r["metadata"] else "{}"
+            try:
+                metadata_dict = json.loads(metadata_json)
+                metadata = EventMetadata(**metadata_dict)
+            except Exception:
+                metadata = EventMetadata()
+            
+            events.append(
                 EventEntity(
                     id=r["id"],
                     source=r["source"],
@@ -938,11 +1022,11 @@ class Repository:
                     description=r["description"],
                     participants=json.loads(r["participants"]),
                     location=r["location"],
+                    metadata=metadata,
                 )
-                for r in rows
-            ],
-            next_cursor,
-        )
+            )
+        
+        return (events, next_cursor)
 
     def list_notes_page(
         self,
@@ -1124,6 +1208,13 @@ class Repository:
             row = db.execute("SELECT * FROM events WHERE id = ?", (event_id,)).fetchone()
         if row is None:
             return None
+        # Parse metadata, handling backward compatibility for rows without it
+        metadata_json = row["metadata"] if row["metadata"] else "{}"
+        try:
+            metadata_dict = json.loads(metadata_json)
+            metadata = EventMetadata(**metadata_dict)
+        except Exception:
+            metadata = EventMetadata()
         return EventEntity(
             id=row["id"],
             source=row["source"],
@@ -1133,6 +1224,7 @@ class Repository:
             description=row["description"],
             participants=json.loads(row["participants"]),
             location=row["location"],
+            metadata=metadata,
         )
 
     def get_project(self, project_id: str) -> ProjectEntity | None:
@@ -1156,6 +1248,7 @@ class Repository:
 
     def search_events(self, query: str) -> list[EventEntity]:
         """Full-text search across event name, description, location, participants."""
+        logger.debug("Searching events: %s", query)
         wildcard = f"%{query}%"
         with self._conn() as db:
             try:
@@ -1165,29 +1258,45 @@ class Repository:
                     "WHERE events_fts MATCH ?",
                     (query,),
                 ).fetchall()
+                logger.debug("FTS search found %d events", len(rows))
             except sqlite3.OperationalError:
-                logger.debug("Invalid FTS query for events; falling back to LIKE", exc_info=True)
+                logger.debug("Invalid FTS query for events; falling back to LIKE")
                 rows = db.execute(
                     "SELECT * FROM events "
                     "WHERE name LIKE ? OR description LIKE ? OR location LIKE ? OR participants LIKE ?",
                     (wildcard, wildcard, wildcard, wildcard),
                 ).fetchall()
-        return [
-            EventEntity(
-                id=r["id"],
-                source=r["source"],
-                from_=datetime.fromisoformat(r["from_"]),
-                to=datetime.fromisoformat(r["to_"]),
-                name=r["name"],
-                description=r["description"],
-                participants=json.loads(r["participants"]),
-                location=r["location"],
+                logger.debug("LIKE search found %d events", len(rows))
+        
+        events = []
+        for r in rows:
+            # Parse metadata, handling backward compatibility
+            metadata_json = r["metadata"] if r["metadata"] else "{}"
+            try:
+                metadata_dict = json.loads(metadata_json)
+                metadata = EventMetadata(**metadata_dict)
+            except Exception:
+                metadata = EventMetadata()
+            
+            events.append(
+                EventEntity(
+                    id=r["id"],
+                    source=r["source"],
+                    from_=datetime.fromisoformat(r["from_"]),
+                    to=datetime.fromisoformat(r["to_"]),
+                    name=r["name"],
+                    description=r["description"],
+                    participants=json.loads(r["participants"]),
+                    location=r["location"],
+                    metadata=metadata,
+                )
             )
-            for r in rows
-        ]
+        logger.info("Event search completed: query=%s, results=%d", query, len(events))
+        return events
 
     def search_notes(self, query: str) -> list[NoteEntity]:
         """Full-text search across note title and raw content."""
+        logger.debug("Searching notes: %s", query)
         wildcard = f"%{query}%"
         with self._conn() as db:
             try:
@@ -1197,13 +1306,16 @@ class Repository:
                     "WHERE notes_fts MATCH ?",
                     (query,),
                 ).fetchall()
+                logger.debug("FTS search found %d notes", len(rows))
             except sqlite3.OperationalError:
-                logger.debug("Invalid FTS query for notes; falling back to LIKE", exc_info=True)
+                logger.debug("Invalid FTS query for notes; falling back to LIKE")
                 rows = db.execute(
                     "SELECT * FROM notes WHERE title LIKE ? OR raw_content LIKE ?",
                     (wildcard, wildcard),
                 ).fetchall()
-        return [
+                logger.debug("LIKE search found %d notes", len(rows))
+        
+        results = [
             NoteEntity(
                 filename=r["filename"],
                 title=r["title"],
@@ -1214,9 +1326,12 @@ class Repository:
             )
             for r in rows
         ]
+        logger.info("Note search completed: query=%s, results=%d", query, len(results))
+        return results
 
     def search_projects(self, query: str) -> list[ProjectEntity]:
         """Full-text search across project title and raw content."""
+        logger.debug("Searching projects: %s", query)
         wildcard = f"%{query}%"
         with self._conn() as db:
             try:
@@ -1226,13 +1341,16 @@ class Repository:
                     "WHERE projects_fts MATCH ?",
                     (query,),
                 ).fetchall()
+                logger.debug("FTS search found %d projects", len(rows))
             except sqlite3.OperationalError:
-                logger.debug("Invalid FTS query for projects; falling back to LIKE", exc_info=True)
+                logger.debug("Invalid FTS query for projects; falling back to LIKE")
                 rows = db.execute(
                     "SELECT * FROM projects WHERE title LIKE ? OR raw_content LIKE ?",
                     (wildcard, wildcard),
                 ).fetchall()
-        return [
+                logger.debug("LIKE search found %d projects", len(rows))
+        
+        results = [
             ProjectEntity(
                 id=r["id"],
                 filename=r["filename"],
@@ -1243,9 +1361,12 @@ class Repository:
             )
             for r in rows
         ]
+        logger.info("Project search completed: query=%s, results=%d", query, len(results))
+        return results
 
     def search_tasks(self, query: str) -> list[TaskEntity]:
         """Full-text search across task text."""
+        logger.debug("Searching tasks: %s", query)
         wildcard = f"%{query}%"
         with self._conn() as db:
             try:
@@ -1256,13 +1377,18 @@ class Repository:
                     "ORDER BY t.line_number",
                     (query,),
                 ).fetchall()
+                logger.debug("FTS search found %d tasks", len(rows))
             except sqlite3.OperationalError:
-                logger.debug("Invalid FTS query for tasks; falling back to LIKE", exc_info=True)
+                logger.debug("Invalid FTS query for tasks; falling back to LIKE")
                 rows = db.execute(
                     "SELECT * FROM tasks WHERE text LIKE ? ORDER BY line_number",
                     (wildcard,),
                 ).fetchall()
-        return [self._row_to_task(r) for r in rows]
+                logger.debug("LIKE search found %d tasks", len(rows))
+        
+        results = [self._row_to_task(r) for r in rows]
+        logger.info("Task search completed: query=%s, results=%d", query, len(results))
+        return results
 
     # ------------------------------------------------------------------
     # Write methods (file → reload → emit)
@@ -1286,6 +1412,7 @@ class Repository:
         Returns:
             The newly created NoteEntity from the repository.
         """
+        logger.debug("Creating note: filename=%s, event_ids=%s, project_ids=%s", filename, event_ids, project_ids)
         frontmatter: dict = {}
         if event_ids:
             frontmatter["event_ids"] = event_ids
@@ -1303,6 +1430,7 @@ class Repository:
 
         path = note_file(self._data_root, note_filename)
         if path.exists():
+            logger.error("Note already exists: %s", path)
             raise FileExistsError(f"Note already exists: {path}")
         path.write_text(_sanitize_content(full_content), encoding="utf-8")
         logger.info("Created note file: %s", path)
@@ -1325,12 +1453,14 @@ class Repository:
         Returns:
             The updated NoteEntity.
         """
+        logger.debug("Updating note: filename=%s", filename)
         note_filename = Path(filename).as_posix()
         if not note_filename.endswith(".md"):
             note_filename = f"{note_filename}.md"
 
         path = note_file(self._data_root, note_filename)
         if not path.exists():
+            logger.error("Note not found: %s", path)
             raise FileNotFoundError(f"Note not found: {path}")
         path.write_text(_sanitize_content(content), encoding="utf-8")
         logger.info("Updated note file: %s", path)
@@ -1349,12 +1479,14 @@ class Repository:
         Args:
             filename: Note filename.
         """
+        logger.debug("Deleting note: filename=%s", filename)
         note_filename = Path(filename).as_posix()
         if not note_filename.endswith(".md"):
             note_filename = f"{note_filename}.md"
 
         path = note_file(self._data_root, note_filename)
         if not path.exists():
+            logger.error("Note not found: %s", path)
             raise FileNotFoundError(f"Note not found: {path}")
         path.unlink()
         logger.info("Deleted note file: %s", path)
@@ -1378,6 +1510,7 @@ class Repository:
         Returns:
             The newly created ProjectEntity.
         """
+        logger.debug("Creating project: filename=%s, event_ids=%s", filename, event_ids)
         frontmatter: dict = {}
         if event_ids:
             frontmatter["event_ids"] = event_ids
@@ -1391,9 +1524,10 @@ class Repository:
 
         path = project_file(self._data_root, project_filename)
         if path.exists():
+            logger.error("Project already exists: %s", path)
             raise FileExistsError(f"Project already exists: {path}")
         path.write_text(_sanitize_content(full_content), encoding="utf-8")
-        logger.info("Created project file: %s", path)
+        logger.info("Created project file: %s (id: %s)", path, Path(project_filename).stem)
 
         self.reload_projects(files=[project_filename])
         project_id = Path(project_filename).stem
@@ -1414,12 +1548,14 @@ class Repository:
         Returns:
             The updated ProjectEntity.
         """
+        logger.debug("Updating project: filename=%s", filename)
         project_filename = Path(filename).as_posix()
         if not project_filename.endswith(".md"):
             project_filename = f"{project_filename}.md"
 
         path = project_file(self._data_root, project_filename)
         if not path.exists():
+            logger.error("Project not found: %s", path)
             raise FileNotFoundError(f"Project not found: {path}")
         path.write_text(_sanitize_content(content), encoding="utf-8")
         logger.info("Updated project file: %s", path)
@@ -1439,12 +1575,14 @@ class Repository:
         Args:
             filename: Project filename.
         """
+        logger.debug("Deleting project: filename=%s", filename)
         project_filename = Path(filename).as_posix()
         if not project_filename.endswith(".md"):
             project_filename = f"{project_filename}.md"
 
         path = project_file(self._data_root, project_filename)
         if not path.exists():
+            logger.error("Project not found: %s", path)
             raise FileNotFoundError(f"Project not found: {path}")
         path.unlink()
         logger.info("Deleted project file: %s", path)
@@ -1462,6 +1600,7 @@ class Repository:
         Returns:
             The created EventEntity as read back from the repository.
         """
+        logger.debug("Creating event: id=%s, name=%s, from=%s, to=%s", event.id, event.name, event.from_.isoformat(), event.to.isoformat())
         path = events_file(self._data_root)
         raw = path.read_text(encoding="utf-8") if path.exists() else "events: []\n"
         data = yaml.safe_load(raw)
@@ -1471,6 +1610,7 @@ class Repository:
             raise ValueError("events.yaml is malformed")
 
         if any(isinstance(existing, dict) and existing.get("id") == event.id for existing in data["events"]):
+            logger.error("Event already exists: %s", event.id)
             raise FileExistsError(f"Event already exists: {event.id}")
 
         entry = {
@@ -1482,6 +1622,7 @@ class Repository:
             "description": event.description,
             "participants": event.participants,
             "location": event.location,
+            "metadata": json.loads(event.metadata.model_dump_json()),
         }
         data["events"].append(entry)
         path.write_text(yaml.dump(data, default_flow_style=False, sort_keys=False), encoding="utf-8")
@@ -1506,6 +1647,7 @@ class Repository:
         Returns:
             The updated EventEntity.
         """
+        logger.debug("Updating event: id=%s, name=%s", event.id, event.name)
         path = events_file(self._data_root)
         raw = path.read_text(encoding="utf-8")
         data = yaml.safe_load(raw)
@@ -1524,11 +1666,13 @@ class Repository:
                     "description": event.description,
                     "participants": event.participants,
                     "location": event.location,
+                    "metadata": json.loads(event.metadata.model_dump_json()),
                 }
                 found = True
                 break
 
         if not found:
+            logger.error("Event not found for update: %s", event.id)
             raise KeyError(f"Event not found: {event.id}")
 
         path.write_text(yaml.dump(data, default_flow_style=False, sort_keys=False), encoding="utf-8")
@@ -1548,6 +1692,7 @@ class Repository:
         Args:
             event_id: The ID of the event to delete.
         """
+        logger.debug("Deleting event: %s", event_id)
         path = events_file(self._data_root)
         raw = path.read_text(encoding="utf-8")
         data = yaml.safe_load(raw)
@@ -1560,6 +1705,7 @@ class Repository:
             if not (isinstance(e, dict) and e.get("id") == event_id)
         ]
         if len(data["events"]) == original_len:
+            logger.error("Event not found for deletion: %s", event_id)
             raise KeyError(f"Event not found: {event_id}")
 
         path.write_text(yaml.dump(data, default_flow_style=False, sort_keys=False), encoding="utf-8")
@@ -1578,13 +1724,16 @@ class Repository:
             source_file: Relative path to the source file (e.g. ``tasks.md``).
             line_number: 1-based line number of the task in the file.
         """
+        logger.debug("Toggling task: source_file=%s, line_number=%d", source_file, line_number)
         path = self._data_root / source_file
         if not path.exists():
+            logger.error("Source file not found: %s", path)
             raise FileNotFoundError(f"Source file not found: {path}")
 
         lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
         idx = line_number - 1  # 0-based
         if idx < 0 or idx >= len(lines):
+            logger.error("Line %d out of range in %s", line_number, source_file)
             raise IndexError(f"Line {line_number} out of range in {source_file}")
 
         line = lines[idx]
@@ -1592,14 +1741,17 @@ class Repository:
         newline = line[len(line_no_newline):]
         match = re.match(r"^(\s*)([-*+]) \[([ xX])\] (.+)$", line_no_newline)
         if match is None:
+            logger.error("Line %d is not a task: %s", line_number, line)
             raise ValueError(f"Line {line_number} is not a task: {line!r}")
 
         indent, bullet, marker, task_text = match.groups()
         toggled_marker = " " if marker in "xX" else "x"
+        old_status = "completed" if marker in "xX" else "incomplete"
+        new_status = "incomplete" if marker in "xX" else "completed"
         lines[idx] = f"{indent}{bullet} [{toggled_marker}] {task_text}{newline}"
 
         path.write_text(_sanitize_content("".join(lines)), encoding="utf-8")
-        logger.info("Toggled task at %s:%d", source_file, line_number)
+        logger.info("Toggled task at %s:%d (%s → %s)", source_file, line_number, old_status, new_status)
 
         # Reload the entity that owns this task
         if source_file.startswith("notes/"):
@@ -1617,17 +1769,21 @@ class Repository:
             source_file: Relative path to the source file.
             line_number: 1-based line number of the task.
         """
+        logger.debug("Deleting task: source_file=%s, line_number=%d", source_file, line_number)
         path = self._data_root / source_file
         if not path.exists():
+            logger.error("Source file not found: %s", path)
             raise FileNotFoundError(f"Source file not found: {path}")
 
         lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
         idx = line_number - 1
         if idx < 0 or idx >= len(lines):
+            logger.error("Line %d out of range in %s", line_number, source_file)
             raise IndexError(f"Line {line_number} out of range in {source_file}")
 
         match = re.match(r"^\s*[-*+] \[[ xX]\] ", lines[idx])
         if match is None:
+            logger.error("Line %d is not a task: %s", line_number, lines[idx])
             raise ValueError(f"Line {line_number} is not a task: {lines[idx]!r}")
 
         del lines[idx]
@@ -1654,13 +1810,16 @@ class Repository:
         if not new_text:
             raise ValueError("Task text must not be empty")
 
+        logger.debug("Updating task: source_file=%s, line_number=%d, new_text=%s", source_file, line_number, new_text[:50])
         path = self._data_root / source_file
         if not path.exists():
+            logger.error("Source file not found: %s", path)
             raise FileNotFoundError(f"Source file not found: {path}")
 
         lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
         idx = line_number - 1
         if idx < 0 or idx >= len(lines):
+            logger.error("Line %d out of range in %s", line_number, source_file)
             raise IndexError(f"Line {line_number} out of range in {source_file}")
 
         line = lines[idx]
@@ -1668,6 +1827,7 @@ class Repository:
         newline = line[len(line_no_newline):]
         match = re.match(r"^(\s*)([-*+]) \[([ xX])\] .+$", line_no_newline)
         if match is None:
+            logger.error("Line %d is not a task: %s", line_number, line)
             raise ValueError(f"Line {line_number} is not a task: {line!r}")
 
         indent, bullet, marker = match.group(1), match.group(2), match.group(3)
@@ -1697,6 +1857,7 @@ class Repository:
         if not text:
             raise ValueError("Task text must not be empty")
 
+        logger.debug("Creating task: text=%s", text[:60])
         path = tasks_file(self._data_root)
         existing = path.read_text(encoding="utf-8") if path.exists() else ""
 
@@ -1706,7 +1867,7 @@ class Repository:
 
         new_line = f"- [ ] {text}\n"
         path.write_text(_sanitize_content(existing + new_line), encoding="utf-8")
-        logger.info("Created task: %s", text)
+        logger.info("Created task: %s", text[:60])
 
         self.reload_tasks()
         self._emit_data_changed([{"entity": "tasks", "ids": None}])

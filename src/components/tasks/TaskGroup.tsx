@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { EventEntity, TaskEntity } from '../../types';
 import { TaskItem } from './TaskItem';
 import { formatEventDate, formatEventTime } from '../../utils/dateFormatting';
+import { ChevronRightIcon, ChevronDownIcon } from '../icons/Icons';
 
 interface TaskGroupProps {
   title: string;
@@ -32,7 +34,26 @@ interface EventTaskGroupProps {
 }
 
 export function EventTaskGroup({ event, tasks }: EventTaskGroupProps) {
+  const [collapsed, setCollapsed] = useState(false);
   const subtitle = `${formatEventDate(event.from_)} ${formatEventTime(event.from_)}`;
-  
-  return <TaskGroup title={event.name} subtitle={subtitle} tasks={tasks} />;
+
+  return (
+    <div className="task-group">
+      <button
+        className="task-group-header"
+        onClick={() => setCollapsed((c) => !c)}
+        aria-expanded={!collapsed}
+      >
+        <span className="task-group-chevron">
+          {collapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}
+        </span>
+        <span className="task-category" style={{ margin: 0 }}>{event.name}</span>
+        <span className="task-group-subtitle">{subtitle}</span>
+        <span className="task-group-count">{tasks.length}</span>
+      </button>
+      {!collapsed && tasks.map((task, i) => (
+        <TaskItem key={i} task={task} />
+      ))}
+    </div>
+  );
 }

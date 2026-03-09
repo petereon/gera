@@ -17,6 +17,73 @@
 }
 
 /* ============================================
+   PORTRAIT / NARROW MODE — bottom-bar layout
+   ============================================ */
+.app-container.portrait {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 16px 0;
+  gap: 0;
+}
+
+.app-container.portrait .main-content {
+  order: 0;
+  flex: 1;
+  min-height: 0;
+  /* small gap above the bar */
+  padding-bottom: 12px;
+}
+
+.app-container.portrait .left-column.bottom-bar {
+  order: 1;
+  /* reset sidebar sizing to bottom-bar sizing */
+  width: 100%;
+  height: 64px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-around;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  padding: 0 8px;
+  gap: 4px;
+  overflow: visible;
+  transition: none;
+}
+
+/* Individual nav items in bottom-bar mode */
+.left-column.bottom-bar .sidebar-block {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  padding: 8px 4px;
+  gap: 3px;
+  border-radius: var(--radius-md);
+  transition: background 160ms ease;
+}
+
+.left-column.bottom-bar .sidebar-block-label {
+  max-width: 80px;
+  opacity: 1;
+  font-size: 10px;
+  font-weight: 600;
+  transition: none;
+  overflow: hidden;
+}
+
+.left-column.bottom-bar .sidebar-block-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.left-column.bottom-bar .sidebar-spacer {
+  display: none;
+}
+
+.left-column.bottom-bar .sidebar-settings-btn {
+  margin-top: 0;
+}
+
+/* ============================================
    LEFT COLUMN - SIDEBAR
    ============================================ */
 .left-column {
@@ -152,6 +219,24 @@
   align-items: center;
   justify-content: center;
   padding: 0 4px;
+}
+
+.sidebar-spacer {
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar-settings-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+  margin-top: auto;
+}
+
+.sidebar-settings-btn:hover {
+  background: var(--surface-secondary);
 }
 
 /* ============================================

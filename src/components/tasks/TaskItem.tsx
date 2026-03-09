@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { TaskEntity } from '../../types';
 import { Checkbox } from '../shared/Checkbox';
-import { ClockIcon, LinkIcon } from '../icons/Icons';
+import { ClockIcon, LinkIcon, TrashIcon } from '../icons/Icons';
 import { cleanTaskDisplay, getTaskTags } from '../../utils/taskFormatting';
 import { formatEventDate, formatEventTime } from '../../utils/dateFormatting';
 import { toggleTask, updateTask, deleteTask } from '../../api';
@@ -28,6 +28,8 @@ export function TaskItem({ task }: TaskItemProps) {
   const ownEventIdsInText = (task.event_ids ?? []).filter((eid) =>
     new RegExp(`@${eid}(?=[^a-z0-9-]|$)`).test(task.text)
   );
+  // Event IDs inherited from the note's frontmatter (can't be removed from here)
+  const inheritedEventIds = (task.event_ids ?? []).filter((eid) => !ownEventIdsInText.includes(eid));
   const isStandalone = task.source_file === 'tasks.md';
 
   // Source label: note title, or "Standalone" for tasks.md tasks
@@ -76,7 +78,8 @@ export function TaskItem({ task }: TaskItemProps) {
 
   const openEdit = () => {
     setEditText(display);
-    setEditEventIds(isStandalone ? [...ownEventIdsInText] : []);
+    // For both standalone and note tasks, start with whatever @tokens are already in the task line
+    setEditEventIds([...ownEventIdsInText]);
     setEditing(true);
   };
 
@@ -93,18 +96,11 @@ export function TaskItem({ task }: TaskItemProps) {
     if (!baseText || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      // For standalone tasks: append @event-id tokens to text.
-      // For note/project tasks: preserve original inline event tokens from task.text.
-      let fullText: string;
-      if (isStandalone) {
-        fullText = editEventIds.length > 0
-          ? `${baseText} ${editEventIds.map((id) => `@${id}`).join(' ')}`
-          : baseText;
-      } else {
-        fullText = ownEventIdsInText.length > 0
-          ? `${baseText} ${ownEventIdsInText.map((id) => `@${id}`).join(' ')}`
-          : baseText;
-      }
+      // For both standalone and note tasks: append @event-id tokens to the task line.
+      // Inherited (frontmatter) events are not touched — they live in the note's YAML, not the task line.
+      const fullText = editEventIds.length > 0
+        ? `${baseText} ${editEventIds.map((id) => `@${id}`).join(' ')}`
+        : baseText;
       await updateTask(task.source_file, task.line_number, fullText);
       closeEdit();
     } catch (err) {
@@ -199,7 +195,16 @@ export function TaskItem({ task }: TaskItemProps) {
       {editing && createPortal(
         <div className="modal-backdrop" ref={backdropRef} onClick={handleBackdropClick}>
           <div className="modal-panel">
-            <h3 className="modal-title">Edit Task</h3>
+            <div className="modal-header">
+              <h3 className="modal-title">Edit Task</h3>
+              <button
+                className="modal-delete-btn"
+                onClick={() => setConfirmDelete(true)}
+                title="Delete task"
+              >
+                <TrashIcon />
+              </button>
+            </div>
             <input
               type="text"
               className="modal-input"
@@ -214,86 +219,85 @@ export function TaskItem({ task }: TaskItemProps) {
             <div className="task-modal-events">
               <span className="task-modal-events-label">Events</span>
               <div className="task-modal-chips">
-                {isStandalone ? (
-                  <>
-                    {editEventIds.map((eid) => {
-                      const name = task.resolved_event_names?.[eid]
-                        ?? allEvents.find((e) => e.id === eid)?.name
-                        ?? eid;
-                      return (
-                        <span key={eid} className="metadata-chip metadata-chip--event">
-                          @{name}
-                          <button
-                            className="metadata-chip-remove"
-                            onClick={() => setEditEventIds((ids) => ids.filter((id) => id !== eid))}
-                            title="Remove event"
-                          >×</button>
-                        </span>
-                      );
-                    })}
-                    <div className="metadata-add-wrapper" ref={pickerRef}>
+                {/* Inherited from note frontmatter — always read-only */}
+                {inheritedEventIds.map((eid) => {
+                  const name = task.resolved_event_names?.[eid] ?? allEvents.find((e) => e.id === eid)?.name ?? eid;
+                  return (
+                    <span key={eid} className="metadata-chip metadata-chip--event metadata-chip--readonly" title="Inherited from note">
+                      @{name}
+                    </span>
+                  );
+                })}
+
+                {/* Editable inline tokens (both standalone and note tasks) */}
+                {editEventIds.map((eid) => {
+                  const name = task.resolved_event_names?.[eid]
+                    ?? allEvents.find((e) => e.id === eid)?.name
+                    ?? eid;
+                  return (
+                    <span key={eid} className="metadata-chip metadata-chip--event">
+                      @{name}
                       <button
-                        className="metadata-chip metadata-chip--add"
-                        onClick={() => { setShowEventPicker((v) => !v); setEventSearch(''); }}
-                      >
-                        + Event
-                      </button>
-                      {showEventPicker && (
-                        <div className="metadata-event-picker">
-                          <input
-                            className="metadata-picker-search"
-                            placeholder="Search events…"
-                            value={eventSearch}
-                            onChange={(e) => setEventSearch(e.target.value)}
-                            autoFocus
-                          />
-                          <div className="metadata-picker-list">
-                            {allEvents
-                              .filter((e) =>
-                                !editEventIds.includes(e.id) &&
-                                e.name.toLowerCase().includes(eventSearch.toLowerCase())
-                              )
-                              .slice(0, 10)
-                              .map((e) => (
-                                <button
-                                  key={e.id}
-                                  className="metadata-picker-item"
-                                  onClick={() => {
-                                    setEditEventIds((ids) => [...ids, e.id]);
-                                    setShowEventPicker(false);
-                                    setEventSearch('');
-                                  }}
-                                >
-                                  {e.name}
-                                </button>
-                              ))}
-                            {allEvents.filter((e) =>
-                              !editEventIds.includes(e.id) &&
-                              e.name.toLowerCase().includes(eventSearch.toLowerCase())
-                            ).length === 0 && (
-                              <span className="metadata-picker-empty">No events found</span>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                        className="metadata-chip-remove"
+                        onClick={() => setEditEventIds((ids) => ids.filter((id) => id !== eid))}
+                        title="Remove event"
+                      >×</button>
+                    </span>
+                  );
+                })}
+
+                {/* Add event picker */}
+                <div className="metadata-add-wrapper" ref={pickerRef}>
+                  <button
+                    className="metadata-chip metadata-chip--add"
+                    onClick={() => { setShowEventPicker((v) => !v); setEventSearch(''); }}
+                  >
+                    + Event
+                  </button>
+                  {showEventPicker && (
+                    <div className="metadata-event-picker">
+                      <input
+                        className="metadata-picker-search"
+                        placeholder="Search events…"
+                        value={eventSearch}
+                        onChange={(e) => setEventSearch(e.target.value)}
+                        autoFocus
+                      />
+                      <div className="metadata-picker-list">
+                        {allEvents
+                          .filter((e) =>
+                            !editEventIds.includes(e.id) &&
+                            !inheritedEventIds.includes(e.id) &&
+                            e.name.toLowerCase().includes(eventSearch.toLowerCase())
+                          )
+                          .slice(0, 10)
+                          .map((e) => (
+                            <button
+                              key={e.id}
+                              className="metadata-picker-item"
+                              onClick={() => {
+                                setEditEventIds((ids) => [...ids, e.id]);
+                                setShowEventPicker(false);
+                                setEventSearch('');
+                              }}
+                            >
+                              {e.name}
+                            </button>
+                          ))}
+                        {allEvents.filter((e) =>
+                          !editEventIds.includes(e.id) &&
+                          !inheritedEventIds.includes(e.id) &&
+                          e.name.toLowerCase().includes(eventSearch.toLowerCase())
+                        ).length === 0 && (
+                          <span className="metadata-picker-empty">No events found</span>
+                        )}
+                      </div>
                     </div>
-                  </>
-                ) : (
-                  // Note/project task: all events are read-only (inherited from source)
-                  (task.event_ids ?? []).length > 0 ? (
-                    <>
-                      {(task.event_ids ?? []).map((eid) => {
-                        const name = task.resolved_event_names?.[eid] ?? eid;
-                        return (
-                          <span key={eid} className="metadata-chip metadata-chip--event metadata-chip--readonly" title="Inherited from note">
-                            @{name}
-                          </span>
-                        );
-                      })}
-                    </>
-                  ) : (
-                    <span className="task-modal-events-empty">None</span>
-                  )
+                  )}
+                </div>
+
+                {inheritedEventIds.length === 0 && editEventIds.length === 0 && !showEventPicker && (
+                  <span className="task-modal-events-empty">None</span>
                 )}
               </div>
             </div>
@@ -301,12 +305,6 @@ export function TaskItem({ task }: TaskItemProps) {
             <div className="modal-actions">
               <button className="modal-btn modal-btn--cancel" onClick={closeEdit}>
                 Cancel
-              </button>
-              <button
-                className="modal-btn modal-btn--danger"
-                onClick={() => setConfirmDelete(true)}
-              >
-                Delete
               </button>
               <button
                 className="modal-btn modal-btn--submit"

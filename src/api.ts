@@ -2,9 +2,10 @@
  * Type-safe wrappers for Gera Python backend commands.
  *
  * Each exported function calls the corresponding `@commands.command()`
- * python handler via pytauri's `pyInvoke`.
+ * python handler via pytauri's `pyInvoke`, or Rust Tauri commands via `invoke`.
  */
 
+import { invoke } from "@tauri-apps/api/core";
 import { pyInvoke } from "tauri-plugin-pytauri-api";
 
 // ---------------------------------------------------------------------------
@@ -24,6 +25,17 @@ export interface RenderMarkdownResponse {
   project_ids: string[];
 }
 
+export interface EventMetadata {
+  source_platform: string;
+  source_account: string;
+  source_event_id: string;
+  source_calendar_id: string;
+  etag: string;
+  last_synced_at: string | null;
+  recurring_event_id: string;
+  source_updated_at: string | null;
+}
+
 export interface EventEntity {
   id: string;
   source: string;
@@ -32,6 +44,8 @@ export interface EventEntity {
   name: string;
   description: string;
   participants: string[];
+  location: string;
+  metadata: EventMetadata;
 }
 
 export interface NoteEntity {
@@ -339,4 +353,75 @@ export async function createNote(
 /** Delete a note file. */
 export async function deleteNote(filename: string): Promise<void> {
   return pyInvoke<void>("delete_note", { filename });
+}
+
+// ============================================================================
+// EVENT MUTATION COMMANDS
+// ============================================================================
+
+export interface UpdateEventRequest {
+  id: string;
+  name: string;
+  from_: string;
+  to: string;
+  description: string;
+  location: string;
+  participants: string[];
+}
+
+/** Update an existing event in events.yaml. */
+export async function updateEvent(req: UpdateEventRequest): Promise<EventEntity> {
+  const response = await pyInvoke<{ event: EventEntity }>("update_event", req);
+  return response.event;
+}
+
+/** Delete an event from events.yaml. */
+export async function deleteEvent(id: string): Promise<void> {
+  return pyInvoke<void>("delete_event", { id });
+}
+
+// ============================================================================
+// GOOGLE CALENDAR OAUTH & SYNC (STUB)
+// ============================================================================
+
+export interface TokenData {
+  access_token: string;
+  refresh_token: string | null;
+  token_type: string;
+  expires_in: number | null;
+  scope: string | null;
+  account_email: string | null;
+}
+
+export interface SyncResult {
+  created: number;
+  updated: number;
+  skipped: number;
+  stale: number;
+}
+
+/** Authenticate with Google Calendar (opens OAuth flow in browser). */
+export async function authenticateGoogle(): Promise<TokenData> {
+  return invoke<TokenData>("authenticate_google_cmd");
+}
+
+/** List all connected Google accounts. */
+export async function listGoogleAccounts(): Promise<TokenData[]> {
+  return invoke<TokenData[]>("list_google_accounts_cmd");
+}
+
+/** Remove a Google account and its tokens. */
+export async function removeGoogleAccount(email: string): Promise<void> {
+  return invoke<void>("remove_google_account_cmd", { email });
+}
+
+/** Sync Google Calendar events for an account. */
+export async function syncGoogleCalendar(
+  accountEmail: string,
+  calendarId: string = "primary"
+): Promise<SyncResult> {
+  return pyInvoke<SyncResult>("sync_google_calendar", {
+    account_email: accountEmail,
+    calendar_id: calendarId,
+  });
 }

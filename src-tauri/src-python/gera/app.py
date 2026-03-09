@@ -6,7 +6,9 @@ from pathlib import Path
 from anyio.from_thread import start_blocking_portal
 from pydantic import BaseModel
 from pytauri import (
+    AppHandle,
     Commands,
+    Manager,
     builder_factory,
     context_factory,
 )
@@ -388,6 +390,143 @@ async def delete_note(body: DeleteNoteRequest) -> None:
     from gera.service import notes
 
     notes.delete_note(get_repo(), body.filename)
+
+
+# ============================================================================
+#   EVENT MUTATION COMMANDS
+# ============================================================================
+
+
+class UpdateEventRequest(BaseModel):
+    id: str
+    name: str
+    from_: datetime
+    to: datetime
+    description: str = ""
+    location: str = ""
+    participants: list[str] = []
+
+
+class UpdateEventResponse(BaseModel):
+    event: EventEntity
+
+
+@commands.command()
+async def update_event(body: UpdateEventRequest) -> UpdateEventResponse:
+    """Update an existing event in events.yaml."""
+    event = get_repo().get_event(body.id)
+    if event is None:
+        raise KeyError(f"Event not found: {body.id}")
+
+    updated = EventEntity(
+        id=event.id,
+        source=event.source,
+        from_=body.from_,
+        to=body.to,
+        name=body.name,
+        description=body.description,
+        location=body.location,
+        participants=body.participants,
+    )
+    result = get_repo().update_event(updated)
+    return UpdateEventResponse(event=result)
+
+
+class DeleteEventRequest(BaseModel):
+    id: str
+
+
+@commands.command()
+async def delete_event(body: DeleteEventRequest) -> None:
+    """Delete an event from events.yaml."""
+    get_repo().delete_event(body.id)
+
+
+# ============================================================================
+#   GOOGLE CALENDAR SYNC
+# ============================================================================
+
+
+class SyncGoogleCalendarRequest(BaseModel):
+    account_email: str
+    calendar_id: str = "primary"
+
+
+class SyncGoogleCalendarResponse(BaseModel):
+    created: int
+    updated: int
+    skipped: int
+    stale: int
+
+
+@commands.command()
+async def sync_google_calendar(body: SyncGoogleCalendarRequest, app_handle: AppHandle) -> SyncGoogleCalendarResponse:
+    """Fetch and merge events from a connected Google Calendar account.
+    
+    Args:
+        account_email: Email of the connected Google account
+        calendar_id: Google Calendar ID to sync (default 'primary')
+    
+    Returns:
+        Sync result with counts of created/updated/skipped/stale events
+        
+    Note:
+        Google tokens are stored in the Tauri app data directory by the Rust OAuth handler.
+    """
+    from gera.service import google_calendar
+
+    token_file = Manager.path(app_handle).app_data_dir() / "google_tokens.json"
+    if not token_file.exists():
+        raise ValueError(f"No Google tokens found at {token_file}. Please authenticate first.")
+    
+    try:
+        tokens_data = json.loads(token_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, IOError) as e:
+        raise ValueError(f"Failed to read Google tokens: {e}") from e
+    
+    # Find token for this account email
+    token_data = None
+    for token in tokens_data:
+        if token.get("account_email") == body.account_email:
+            token_data = token
+            break
+    
+    if token_data is None:
+        raise ValueError(f"No token found for account: {body.account_email}")
+
+    # Refresh the access token (expires after ~1 hour) before calling the API.
+    refresh_token = token_data.get("refresh_token")
+    if not refresh_token:
+        raise ValueError(f"No refresh token stored for {body.account_email}. Re-authenticate.")
+    try:
+        refreshed = google_calendar.refresh_access_token(refresh_token)
+    except ValueError as exc:
+        raise ValueError(f"Could not refresh Google token: {exc}") from exc
+    # Update the in-memory record and persist the new access token.
+    token_data = {**token_data, **refreshed}
+    for i, tok in enumerate(tokens_data):
+        if tok.get("account_email") == body.account_email:
+            tokens_data[i] = token_data
+            break
+    try:
+        token_file.write_text(json.dumps(tokens_data, indent=2), encoding="utf-8")
+    except IOError as exc:
+        logger.warning("Failed to persist refreshed token: %s", exc)
+
+    # Perform sync
+    result = google_calendar.sync_google_events(
+        repo=get_repo(),
+        access_token=token_data["access_token"],
+        account_email=body.account_email,
+        calendar_id=body.calendar_id,
+    )
+    
+    return SyncGoogleCalendarResponse(
+        created=result.created,
+        updated=result.updated,
+        skipped=result.skipped,
+        stale=result.stale,
+    )
 
 
 # ---------------------------------------------------------------------------

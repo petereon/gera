@@ -171,7 +171,7 @@
   background: var(--accent-blue-subtle);
 }
 
-.today-btn {
+.today-btn, .refresh-btn {
   padding: 8px 14px;
   background: var(--surface-secondary);
   border: none;
@@ -183,7 +183,7 @@
   transition: all 200ms ease;
 }
 
-.today-btn:hover {
+.today-btn:hover, .refresh-btn:hover {
   background: var(--accent-blue-subtle);
   color: var(--accent-blue);
 }
@@ -317,6 +317,33 @@
   color: var(--text-primary);
 }
 
+.all-day-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 4px 4px 0;
+}
+
+.all-day-chip {
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--accent-blue);
+  color: white;
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  transition: opacity 150ms ease;
+}
+
+.all-day-chip:hover {
+  opacity: 0.85;
+}
+
 .time-cell {
   font-size: 11px;
   color: var(--text-tertiary);
@@ -440,6 +467,37 @@
 }
 
 /* ============================================
+   EVENT SOURCE BADGES
+   ============================================ */
+.event-block-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.event-source-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+.event-source-badge--google {
+  background: #4285F4;
+  color: white;
+  font-weight: 600;
+  title: 'Google Calendar';
+}
+
+/* ============================================
    TASKS VIEW SPECIFIC
    ============================================ */
 .tasks-view {
@@ -451,6 +509,8 @@
   flex-direction: column;
   gap: 16px;
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .tasks-header {
@@ -481,6 +541,103 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-height: 0;
+}
+
+/* Timeline variant: two independently-scrolling panes stacked vertically */
+.tasks-list--timeline {
+  overflow: hidden; /* each child scrolls independently */
+  gap: 0;
+}
+
+.timeline-scheduled-pane {
+  flex: 2;
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+
+.timeline-scheduled-empty {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-style: italic;
+  padding: 12px 0;
+}
+
+/* ============================================
+   UNSCHEDULED TASKS BLOCK (Timeline view)
+   ============================================ */
+.unscheduled-block {
+  flex: 0 0 33%;
+  min-height: 0;
+  background: var(--surface-secondary);
+  border-radius: var(--radius-lg, 12px);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.unscheduled-block-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unscheduled-block-count {
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface-primary);
+  color: var(--text-tertiary);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.unscheduled-block-search {
+  /* wrapper keeps layout clear */
+}
+
+.unscheduled-search-input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  background: var(--surface-primary);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--text-primary);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.unscheduled-search-input:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px var(--accent-blue-subtle);
+}
+
+.unscheduled-search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.unscheduled-block-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.unscheduled-block-empty {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-style: italic;
+  margin: 4px 0;
+  padding: 4px 0;
 }
 
 /* ============================================

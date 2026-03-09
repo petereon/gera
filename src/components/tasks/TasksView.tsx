@@ -17,10 +17,10 @@ export function TasksView({}: TasksViewProps) {
   const [showModal, setShowModal] = useState(false);
   const [newTaskText, setNewTaskText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [viewMode, setViewMode] = useState<TasksViewMode>('grouped');
+  const [viewMode, setViewMode] = useState<TasksViewMode>('timeline');
   const backdropRef = useRef<HTMLDivElement>(null);
 
-  const { filteredEventsWithTasks, filteredOtherTasks, timelineTasks, getTasksForEvent } =
+  const { filteredEventsWithTasks, filteredOtherTasks, timelineScheduledTasks, timelineUnscheduledTasks, getTasksForEvent } =
     useTaskFiltering(tasks, events, tasksSearch);
 
   const closeModal = () => {
@@ -63,17 +63,18 @@ export function TasksView({}: TasksViewProps) {
           <div className="section-label">TASKS</div>
           <div className="tasks-view-toggle">
             <button
-              className={`tasks-view-toggle-btn${viewMode === 'grouped' ? ' active' : ''}`}
-              onClick={() => setViewMode('grouped')}
-            >
-              By Event
-            </button>
-            <button
               className={`tasks-view-toggle-btn${viewMode === 'timeline' ? ' active' : ''}`}
               onClick={() => setViewMode('timeline')}
             >
               Timeline
             </button>
+            <button
+              className={`tasks-view-toggle-btn${viewMode === 'grouped' ? ' active' : ''}`}
+              onClick={() => setViewMode('grouped')}
+            >
+              By Event
+            </button>
+            
           </div>
           <button
             className="icon-btn"
@@ -94,7 +95,8 @@ export function TasksView({}: TasksViewProps) {
       <TaskList
         filteredEventsWithTasks={filteredEventsWithTasks}
         filteredOtherTasks={filteredOtherTasks}
-        timelineTasks={timelineTasks}
+        timelineScheduledTasks={timelineScheduledTasks}
+        timelineUnscheduledTasks={timelineUnscheduledTasks}
         getTasksForEvent={getTasksForEvent}
         viewMode={viewMode}
       />

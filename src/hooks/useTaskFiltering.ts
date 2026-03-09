@@ -2,10 +2,53 @@ import { useMemo, useCallback, useState, useEffect } from 'react';
 import { EventEntity, TaskEntity, searchTasks } from '../api';
 import { getTaskDedupeKey, deduplicate } from '../utils/deduplication';
 
+/** Convert a time-reference unit+amount to milliseconds. */
+function unitToMs(amount: number, unit: string): number {
+  const table: Record<string, number> = {
+    m: 60_000,
+    h: 3_600_000,
+    d: 86_400_000,
+    W: 604_800_000,
+    M: 2_592_000_000,
+    Y: 31_536_000_000,
+  };
+  return (table[unit] ?? 86_400_000) * amount;
+}
+
+/**
+ * Return the effective scheduled timestamp for a task, or null if unscheduled.
+ *
+ * Priority:
+ *  1. Absolute deadline  (@YYYY-MM-DDTHH:MM stored in task.deadline)
+ *  2. Relative time references  (@before[2d]:event-id → event.from_ − 2d)
+ *  3. Earliest linked event start time
+ */
+export function getEffectiveTimeMs(task: TaskEntity, events: EventEntity[]): number | null {
+  if (task.deadline) return new Date(task.deadline).getTime();
+
+  for (const ref of task.time_references ?? []) {
+    const event = events.find((e) => e.id === ref.target_id);
+    if (!event) continue;
+    const base = new Date(ref.modifier === 'before' ? event.from_ : event.to).getTime();
+    const offset = unitToMs(ref.amount, ref.unit);
+    return ref.modifier === 'before' ? base - offset : base + offset;
+  }
+
+  if (task.event_ids.length > 0) {
+    const times = task.event_ids
+      .map((id) => events.find((e) => e.id === id)?.from_)
+      .filter((d): d is string => !!d)
+      .map((d) => new Date(d).getTime());
+    if (times.length) return Math.min(...times);
+  }
+
+  return null;
+}
+
 /**
  * Hook that handles task filtering and grouping logic.
  * Separates standalone tasks from event-linked tasks and filters both by search query.
- * 
+ *
  * Hybrid search approach:
  * 1. First filters locally (instant, but limited to loaded data)
  * 2. If query is long enough and results are few, searches backend FTS5
@@ -68,11 +111,18 @@ export function useTaskFiltering(
     [events, tasksByEventId]
   );
 
-  // Apply search filter to other tasks (local filtering)
-  const filteredOtherTasks = useMemo(
-    () => otherTasks.filter((t) => filterTask(t, search)),
-    [otherTasks, search, filterTask]
-  );
+  // Apply search filter to other tasks — scheduled (by deadline) first, unscheduled last
+  const filteredOtherTasks = useMemo(() => {
+    const filtered = otherTasks.filter((t) => filterTask(t, search));
+    return [...filtered].sort((a, b) => {
+      const at = a.deadline ? new Date(a.deadline).getTime() : null;
+      const bt = b.deadline ? new Date(b.deadline).getTime() : null;
+      if (at !== null && bt !== null) return at - bt;
+      if (at !== null) return -1;
+      if (bt !== null) return 1;
+      return 0;
+    });
+  }, [otherTasks, search, filterTask]);
 
   // Apply search filter to events with tasks (local filtering)
   const filteredEventsWithTasks = useMemo(() => {
@@ -115,30 +165,42 @@ export function useTaskFiltering(
     }
   }, [search, filteredOtherTasks, filteredEventsWithTasks]);
 
-  // Merge local and backend results, deduping by source_file:line_number:text_hash
+  // Merge local and backend results, deduping; re-apply deadline sort
   const mergedOtherTasks = useMemo(() => {
-    if (backendResults.length === 0) return filteredOtherTasks;
-    const allTasks = [...filteredOtherTasks, ...backendResults.filter((t) => t.event_ids.length === 0)];
-    return deduplicate(allTasks, getTaskDedupeKey);
+    const base = backendResults.length === 0
+      ? filteredOtherTasks
+      : deduplicate(
+          [...filteredOtherTasks, ...backendResults.filter((t) => t.event_ids.length === 0)],
+          getTaskDedupeKey
+        );
+    return [...base].sort((a, b) => {
+      const at = a.deadline ? new Date(a.deadline).getTime() : null;
+      const bt = b.deadline ? new Date(b.deadline).getTime() : null;
+      if (at !== null && bt !== null) return at - bt;
+      if (at !== null) return -1;
+      if (bt !== null) return 1;
+      return 0;
+    });
   }, [filteredOtherTasks, backendResults]);
 
-  // Timeline: all tasks sorted by earliest associated event date; unscheduled last
-  const timelineTasks = useMemo(() => {
+  // Timeline: split into scheduled (sorted by effective time) and unscheduled
+  const { timelineScheduledTasks, timelineUnscheduledTasks } = useMemo(() => {
     const allFiltered = tasks.filter((t) => filterTask(t, search));
     const merged = backendResults.length > 0
       ? deduplicate([...allFiltered, ...backendResults], getTaskDedupeKey)
       : allFiltered;
 
-    const getEarliestMs = (task: TaskEntity): number => {
-      if (!task.event_ids.length) return Infinity;
-      const dates = task.event_ids
-        .map((id) => events.find((e) => e.id === id)?.from_)
-        .filter((d): d is string => !!d)
-        .map((d) => new Date(d).getTime());
-      return dates.length ? Math.min(...dates) : Infinity;
-    };
+    const scheduled: TaskEntity[] = [];
+    const unscheduled: TaskEntity[] = [];
 
-    return [...merged].sort((a, b) => getEarliestMs(a) - getEarliestMs(b));
+    for (const task of merged) {
+      if (getEffectiveTimeMs(task, events) !== null) scheduled.push(task);
+      else unscheduled.push(task);
+    }
+
+    scheduled.sort((a, b) => getEffectiveTimeMs(a, events)! - getEffectiveTimeMs(b, events)!);
+
+    return { timelineScheduledTasks: scheduled, timelineUnscheduledTasks: unscheduled };
   }, [tasks, events, search, filterTask, backendResults]);
 
   // Helper to get tasks for a specific event
@@ -150,7 +212,8 @@ export function useTaskFiltering(
   return {
     filteredEventsWithTasks,
     filteredOtherTasks: mergedOtherTasks,
-    timelineTasks,
+    timelineScheduledTasks,
+    timelineUnscheduledTasks,
     getTasksForEvent,
     isSearching,
   };

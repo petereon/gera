@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { EventEntity } from '../api';
+import { isAllDayEvent } from '../utils/eventPositioning';
 
 /**
  * Hook that provides calendar utility functions for date calculations and event positioning.
@@ -46,6 +47,7 @@ export function useCalendarUtils() {
     (events: EventEntity[], hourIndex: number, dayIndex: number, weekDates: Date[]) => {
       const cellDate = weekDates[dayIndex];
       return events.filter((ev) => {
+        if (isAllDayEvent(ev)) return false;
         try {
           const from = new Date(ev.from_);
           return (

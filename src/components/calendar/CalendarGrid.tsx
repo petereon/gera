@@ -1,5 +1,7 @@
 import React from 'react';
 import { EventEntity, NoteEntity } from '../../types';
+import { getAllDayEventsForDay } from '../../utils/eventPositioning';
+import { useAppStore } from '../../stores/useAppStore';
 import { EventBlock } from './EventBlock';
 
 interface CalendarGridProps {
@@ -30,17 +32,40 @@ export function CalendarGrid({
   const gridStyle = {
     gridTemplateColumns: `60px repeat(${colCount}, 1fr)`,
   };
+  const setSelectedEvent = useAppStore((s) => s.setSelectedEvent);
+  const setSelectedNote = useAppStore((s) => s.setSelectedNote);
 
   return (
     <div className="calendar-grid" style={gridStyle}>
       {/* Day headers row */}
       <div className="calendar-corner"></div>
-      {dayNames.map((day, i) => (
-        <div key={day + i} className="day-header">
-          <span className="day-name">{day}</span>
-          <span className="day-number">{weekDates[i].getDate()}</span>
-        </div>
-      ))}
+      {dayNames.map((day, i) => {
+        const allDayEvs = getAllDayEventsForDay(events, weekDates[i]);
+        return (
+          <div key={day + i} className="day-header">
+            <span className="day-name">{day}</span>
+            <span className="day-number">{weekDates[i].getDate()}</span>
+            {allDayEvs.length > 0 && (
+              <div className="all-day-chips">
+                {allDayEvs.map((ev) => (
+                  <div
+                    key={ev.id}
+                    className="all-day-chip"
+                    title={ev.name}
+                    onClick={() => {
+                      setSelectedEvent(ev);
+                      const linkedNote = notes.find((n) => n.event_ids.includes(ev.id));
+                      setSelectedNote(linkedNote ?? null);
+                    }}
+                  >
+                    {ev.name}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {/* Time rows */}
       {hours.map((hour, hourIndex) => (

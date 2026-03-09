@@ -2,6 +2,32 @@ import { EventEntity } from '../api';
 
 export const HOUR_HEIGHT_PX = 56;
 
+/** True if the event spans 24 hours or more (all-day / multi-day). */
+export function isAllDayEvent(event: EventEntity): boolean {
+  try {
+    const durationMs = new Date(event.to).getTime() - new Date(event.from_).getTime();
+    return durationMs >= 24 * 60 * 60 * 1000;
+  } catch {
+    return false;
+  }
+}
+
+/** Return all-day events that overlap a given calendar column date. */
+export function getAllDayEventsForDay(events: EventEntity[], day: Date): EventEntity[] {
+  const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
+  const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+  return events.filter((ev) => {
+    if (!isAllDayEvent(ev)) return false;
+    try {
+      const from = new Date(ev.from_).getTime();
+      const to = new Date(ev.to).getTime();
+      return from < dayEnd && to > dayStart;
+    } catch {
+      return false;
+    }
+  });
+}
+
 export interface EventStyle {
   height: string;
   top: string;
