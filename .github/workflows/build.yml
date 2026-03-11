@@ -207,6 +207,50 @@ jobs:
             --config "src-tauri/tauri.bundle.json" \
             -- --profile bundle-release
 
+      # Re-sign AFTER the bundle is fully assembled on disk.
+      #
+      # tauri-cli signs the .app during bundle assembly, but at that point
+      # Contents/Resources (including pyembed) may not yet be fully flushed,
+      # producing an ad-hoc signature with no sealed resource manifest.
+      # Gatekeeper then rejects the app with "damaged and can't be opened".
+      #
+      # Fix: deep-sign the finalised bundle ourselves, then package into a
+      # fresh zip so the archive never contains the stale signature.
+      - name: Re-sign and package .app (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          APP=$(find target/bundle-release/bundle/macos -name "*.app" -maxdepth 1 | head -1)
+          if [ -z "$APP" ]; then
+            echo "ERROR: No .app bundle found in target/bundle-release/bundle/macos"
+            exit 1
+          fi
+          echo "Re-signing: $APP"
+
+          # Remove any quarantine attribute that CI runners can occasionally attach
+          xattr -cr "$APP"
+
+          # Deep ad-hoc re-sign: seals every nested binary AND the resource tree
+          codesign --force --deep --sign - "$APP"
+
+          # Verify the new signature before packaging
+          codesign --verify --deep --strict "$APP"
+          echo "Signature OK"
+
+          # Repackage the re-signed .app into a fresh DMG.
+          # The DMG produced by tauri-cli contains the stale-signed .app,
+          # so we recreate it here after re-signing.
+          APP_NAME=$(basename "$APP" .app)
+          DMG_DIR="target/bundle-release/bundle/dmg"
+          mkdir -p "$DMG_DIR"
+          DMG="${DMG_DIR}/${APP_NAME}.dmg"
+          hdiutil create \
+            -volname "$APP_NAME" \
+            -srcfolder "$APP" \
+            -ov \
+            -format UDZO \
+            "$DMG"
+          echo "Packaged: $DMG"
+
       - name: Build standalone binary (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -237,10 +281,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gera-${{ matrix.platform }}
-          path: |
-            target/bundle-release/bundle/dmg/*.dmg
-            target/bundle-release/bundle/macos/*.app
-          if-no-files-found: warn
+          path: target/bundle-release/bundle/dmg/*.dmg
+          if-no-files-found: error
 
       - name: Upload bundle artifacts (Windows)
         if: runner.os == 'Windows'
