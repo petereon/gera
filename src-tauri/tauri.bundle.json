@@ -1,4 +1,7 @@
 {
+  "build": {
+    "beforeBuildCommand": "bun run build"
+  },
   "bundle": {
     "active": true,
     "targets": [
