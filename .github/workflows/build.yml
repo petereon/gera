@@ -40,11 +40,11 @@ jobs:
             rust_target: aarch64-unknown-linux-gnu
             py_bin: bin/python3
 
-          - platform: macos-x86_64
-            os: macos-13
-            py_arch: x86_64-apple-darwin
-            rust_target: x86_64-apple-darwin
-            py_bin: bin/python3
+          # - platform: macos-x86_64
+          #   os: macos-13
+          #   py_arch: x86_64-apple-darwin
+          #   rust_target: x86_64-apple-darwin
+          #   py_bin: bin/python3
 
           - platform: macos-aarch64
             os: macos-latest
