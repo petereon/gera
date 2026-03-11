@@ -13,9 +13,8 @@
   "app": {
     "windows": [
       {
-        "title": "gera",
-        "width": 800,
-        "height": 600
+        "title": "",
+        "titleBarStyle": "Transparent"
       }
     ],
     "security": {
