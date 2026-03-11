@@ -236,19 +236,26 @@ jobs:
           codesign --verify --deep --strict "$APP"
           echo "Signature OK"
 
-          # Repackage the re-signed .app into a fresh DMG.
-          # The DMG produced by tauri-cli contains the stale-signed .app,
-          # so we recreate it here after re-signing.
-          APP_NAME=$(basename "$APP" .app)
+          # Remove the stale DMG produced by tauri-cli (contains the pre-re-sign .app).
           DMG_DIR="target/bundle-release/bundle/dmg"
+          rm -f "$DMG_DIR"/*.dmg
+
+          # Build a staging directory with the standard drag-to-Applications layout.
+          APP_NAME=$(basename "$APP" .app)
+          STAGING=$(mktemp -d)
+          cp -R "$APP" "$STAGING/${APP_NAME}.app"
+          ln -s /Applications "$STAGING/Applications"
+
+          # Create the fresh DMG from the staging directory.
           mkdir -p "$DMG_DIR"
           DMG="${DMG_DIR}/${APP_NAME}.dmg"
           hdiutil create \
             -volname "$APP_NAME" \
-            -srcfolder "$APP" \
+            -srcfolder "$STAGING" \
             -ov \
             -format UDZO \
             "$DMG"
+          rm -rf "$STAGING"
           echo "Packaged: $DMG"
 
       - name: Build standalone binary (Windows)
