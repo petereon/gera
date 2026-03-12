@@ -32,6 +32,11 @@ export function GoogleAccountsModal({ isOpen, onClose }: GoogleAccountsModalProp
       setError(null);
       const accts = await listGoogleAccounts();
       setAccounts(accts);
+      try {
+        window.dispatchEvent(new CustomEvent('google-accounts-changed', { detail: accts }));
+      } catch (e) {
+        // ignore if environment doesn't support CustomEvent
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load accounts');
     }
@@ -42,7 +47,13 @@ export function GoogleAccountsModal({ isOpen, onClose }: GoogleAccountsModalProp
     setError(null);
     try {
       const token = await authenticateGoogle();
-      setAccounts([...accounts, token]);
+      const newAccounts = [...accounts, token];
+      setAccounts(newAccounts);
+      try {
+        window.dispatchEvent(new CustomEvent('google-accounts-changed', { detail: newAccounts }));
+      } catch (e) {
+        // ignore
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed');
     } finally {
@@ -54,7 +65,13 @@ export function GoogleAccountsModal({ isOpen, onClose }: GoogleAccountsModalProp
     if (!email) return;
     try {
       await removeGoogleAccount(email);
-      setAccounts(accounts.filter((a) => a.account_email !== email));
+      const newAccounts = accounts.filter((a) => a.account_email !== email);
+      setAccounts(newAccounts);
+      try {
+        window.dispatchEvent(new CustomEvent('google-accounts-changed', { detail: newAccounts }));
+      } catch (e) {
+        // ignore
+      }
       setSyncResults((prev) => {
         const newResults = { ...prev };
         delete newResults[email];

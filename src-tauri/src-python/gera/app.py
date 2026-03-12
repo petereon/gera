@@ -20,6 +20,7 @@ from gera.entities import (
     ProjectEntity,
     TaskEntity,
 )
+from gera.entities.event_metadata import EventMetadata
 from gera.filesystem import init_data_directory, verify_structure
 from gera.renderer import render as render_markdown
 from gera.watcher import _start_watcher, _stop_watcher
@@ -395,6 +396,50 @@ async def delete_note(body: DeleteNoteRequest) -> None:
 # ============================================================================
 #   EVENT MUTATION COMMANDS
 # ============================================================================
+
+
+class CreateEventRequest(BaseModel):
+    id: str
+    source: str = "local"
+    from_: datetime
+    to: datetime
+    name: str
+    description: str = ""
+    participants: list[str] = []
+    location: str = ""
+    metadata: dict | None = None
+
+
+class CreateEventResponse(BaseModel):
+    event: EventEntity
+
+
+@commands.command()
+async def create_event(body: CreateEventRequest) -> CreateEventResponse:
+    """Create a new event and append it to events.yaml."""
+    # Normalize incoming metadata into the EventMetadata model so EventEntity
+    # receives the correct typed value (Pydantic v2 model).
+    if isinstance(body.metadata, EventMetadata):
+        metadata_val = body.metadata
+    elif body.metadata is None:
+        metadata_val = EventMetadata()
+    else:
+        metadata_val = EventMetadata.model_validate(body.metadata)
+
+    ev = EventEntity(
+        id=body.id,
+        source=body.source,
+        from_=body.from_,
+        to=body.to,
+        name=body.name,
+        description=body.description,
+        participants=body.participants,
+        location=body.location,
+        metadata=metadata_val,
+    )
+    result = get_repo().create_event(ev)
+    return CreateEventResponse(event=result)
+
 
 
 class UpdateEventRequest(BaseModel):
