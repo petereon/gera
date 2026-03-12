@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { EventEntity, updateEvent, deleteEvent } from '../../api';
 import { TrashIcon } from '../icons/Icons';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
+import { DateTimePicker } from '../shared/DateTimePicker';
 
 interface EventEditModalProps {
   event: EventEntity;
@@ -136,21 +137,11 @@ export function EventEditModal({ event, onClose }: EventEditModalProps) {
         <div className="event-modal-time-row">
           <div className="event-modal-field">
             <label className="event-modal-label">Start</label>
-            <input
-              className="modal-input"
-              type="datetime-local"
-              value={fromVal}
-              onChange={(e) => setFromVal(e.target.value)}
-            />
+            <DateTimePicker value={fromVal} onChange={setFromVal} />
           </div>
           <div className="event-modal-field">
             <label className="event-modal-label">End</label>
-            <input
-              className="modal-input"
-              type="datetime-local"
-              value={toVal}
-              onChange={(e) => setToVal(e.target.value)}
-            />
+            <DateTimePicker value={toVal} onChange={setToVal} />
           </div>
         </div>
 

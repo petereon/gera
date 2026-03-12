@@ -18,6 +18,47 @@
   --accent-blue-light: #A8CBE8;
   --accent-blue-subtle: #DBEAFE;
 
+  /* Additional brand / accent tokens */
+  --brand-gradient-start: #D4A574;
+  --brand-gradient-end: #8B6914;
+  --accent-purple: #7C3AED;
+  --accent-purple-dark: #6B21A8;
+  --color-danger-subtle: #FEE2E2;
+  /* External brand colors */
+  --google-blue: #4285F4;
+
+  /* Hover states and surface accents */
+  --accent-blue-hover: #4a8ac4;
+  --accent-blue-shadow: rgba(91,155,213,0.22);
+  --surface-accent: #EEF2FF;
+  --on-accent: #ffffff;
+
+  /* Editor toolbar tokens */
+  --editor-toolbar-bg: var(--surface-secondary);
+  --editor-toolbar-border: var(--surface-secondary);
+  --editor-toolbar-icon: var(--text-primary);
+  --editor-toolbar-icon-active: var(--accent-blue);
+
+  /* System colors */
+  --color-danger: #ef4444;
+  --color-danger-contrast: #ffffff;
+  --color-danger-hover: #b91c1c;
+
+  /* Chips */
+  --chip-event-bg: #e0edff;
+  --chip-event-text: #2563eb;
+  --chip-project-bg: #e6f4ea;
+  --chip-project-text: #16a34a;
+  --chip-deadline-bg: #fef3c7;
+  --chip-deadline-text: #b45309;
+  --chip-datetime-bg: #F3E8FF;
+  --chip-datetime-text: #7C3AED;
+
+
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(0, 0, 0, 0.18);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.30);
+
   /* Radii */
   --radius-xl: 24px;
   --radius-lg: 16px;
@@ -28,6 +69,7 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.08);
+  --task-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
 
   /* Typography */
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -51,4 +93,76 @@
 body {
   margin: 0;
   background-color: var(--app-bg);
+}
+
+/* ---- Global scrollbar ---- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Dark theme overrides */
+:root[data-theme="dark"] {
+  /* Backgrounds */
+  --app-bg: #000000;
+  --surface-primary: #101010;
+  --surface-secondary: #1d1d1d;
+  --surface-tertiary: #242424;
+
+  /* Text */
+  --text-primary: #E6EEF8;
+  --text-secondary: #AAB7C8;
+  --text-tertiary: #8F9BA8;
+
+  /* Accent (Brand Color) */
+  --accent-blue: #4F9AD6;
+  --accent-blue-light: #76B0E0;
+  --accent-blue-subtle: rgba(79,154,214,0.12);
+
+  /* Shadows (darker background) */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.65);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.7);
+
+  color: var(--text-primary);
+  background-color: var(--app-bg);
+
+  /* Dark chips */
+  /* Editor toolbar tokens (dark) */
+  --editor-toolbar-bg: var(--surface-secondary);
+  --editor-toolbar-border: var(--surface-tertiary);
+  --editor-toolbar-icon: var(--text-primary);
+  --editor-toolbar-icon-active: var(--accent-blue);
+  --chip-event-bg: var(--accent-blue-subtle);
+  --chip-event-text: var(--accent-blue);
+  --chip-project-bg: rgba(16, 163, 74, 0.08);
+  --chip-project-text: #16a34a;
+  --chip-deadline-bg: rgba(250, 204, 21, 0.12);
+  --chip-deadline-text: #f59e0b;
+  --chip-datetime-bg: rgba(124, 58, 237, 0.08);
+  --chip-datetime-text: #c4b5fd;
+
+  /* Hover and subtle surface tokens for dark theme */
+  --accent-blue-hover: #376a91;
+  --accent-blue-shadow: rgba(79,154,214,0.22);
+  --surface-accent: rgba(79,154,214,0.06);
+  --on-accent: #ffffff;
+  --task-shadow: 0 1px 2px rgba(255,255,255,0.02);
+
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(255, 255, 255, 0.18);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.30);
 }

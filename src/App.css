@@ -1,57 +1,5 @@
-/* ============================================
-   DESIGN TOKENS (CSS Variables)
-   ============================================ */
-:root {
-  /* Backgrounds */
-  --app-bg: #E8EDF4;
-  --surface-primary: #FFFFFF;
-  --surface-secondary: #F0F2F5;
-  --surface-tertiary: #F8F9FB;
+/* Design tokens moved to src/styles/variables.css */
 
-  /* Text */
-  --text-primary: #1A1A1A;
-  --text-secondary: #6B7280;
-  --text-tertiary: #9CA3AF;
-
-  /* Accent (Brand Color) */
-  --accent-blue: #5B9BD5;
-  --accent-blue-light: #A8CBE8;
-  --accent-blue-subtle: #DBEAFE;
-
-  /* Radii */
-  --radius-xl: 24px;
-  --radius-lg: 16px;
-  --radius-md: 12px;
-  --radius-sm: 8px;
-
-  /* Shadows */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.08);
-
-  /* Typography */
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color: var(--text-primary);
-  background-color: var(--app-bg);
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  background-color: var(--app-bg);
-}
 
 /* ============================================
    GLOBAL LAYOUT
@@ -351,7 +299,7 @@ body {
 .image-placeholder {
   width: 56px;
   height: 56px;
-  background: linear-gradient(135deg, #D4A574 0%, #8B6914 100%);
+  background: linear-gradient(135deg, var(--brand-gradient-start) 0%, var(--brand-gradient-end) 100%);
   border-radius: var(--radius-md);
 }
 
@@ -727,7 +675,7 @@ body {
   align-items: flex-start;
   gap: 4px;
   padding: 8px 10px;
-  background: #F3E8FF;
+  background: var(--chip-datetime-bg);
   border-radius: var(--radius-sm);
   margin-top: 4px;
 }
@@ -735,12 +683,12 @@ body {
 .source-badge {
   font-size: 12px;
   font-weight: 500;
-  color: #7C3AED;
+  color: var(--chip-datetime-text);
 }
 
 .source-account {
   font-size: 11px;
-  color: #6B21A8;
+  color: var(--accent-purple-dark);
 }
 
 .btn-primary {
@@ -830,18 +778,18 @@ body {
 }
 
 .task-tag--event {
-  background: #e0edff;
-  color: #2563eb;
+  background: var(--chip-event-bg);
+  color: var(--chip-event-text);
 }
 
 .task-tag--project {
-  background: #e6f4ea;
-  color: #16a34a;
+  background: var(--chip-project-bg);
+  color: var(--chip-project-text);
 }
 
 .task-tag--deadline {
-  background: #fef3c7;
-  color: #b45309;
+  background: var(--chip-deadline-bg);
+  color: var(--chip-deadline-text);
 }
 
 .task-tag--deadline svg {
@@ -1047,29 +995,6 @@ body {
   overflow: hidden;
 }
 
-/* ============================================
-   SCROLLBAR STYLING
-   ============================================ */
-.island-pane::-webkit-scrollbar,
-.calendar-grid::-webkit-scrollbar {
-  width: 6px;
-}
-
-.island-pane::-webkit-scrollbar-track,
-.calendar-grid::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.island-pane::-webkit-scrollbar-thumb,
-.calendar-grid::-webkit-scrollbar-thumb {
-  background: var(--surface-secondary);
-  border-radius: 3px;
-}
-
-.island-pane::-webkit-scrollbar-thumb:hover,
-.calendar-grid::-webkit-scrollbar-thumb:hover {
-  background: var(--text-tertiary);
-}
 
 /* ============================================
    MARKDOWN PREVIEW
@@ -1089,7 +1014,7 @@ body {
 }
 
 .md-preview--error {
-  color: #DC2626;
+  color: var(--color-danger);
   font-size: 13px;
   padding: 12px 0;
 }
@@ -1124,8 +1049,8 @@ body {
 }
 
 .md-badge--project {
-  background: #F0FDF4;
-  color: #15803D;
+  background: var(--chip-project-bg);
+  color: var(--chip-project-text);
 }
 
 /* Rendered body typography */
@@ -1295,18 +1220,18 @@ body {
 
 /* @before[offset]:target */
 .gera-ref--before {
-  background: #FEF3C7;
-  color: #B45309;
+  background: var(--chip-deadline-bg);
+  color: var(--chip-deadline-text);
 }
 
 /* @datetime */
 .gera-ref--datetime {
-  background: #F3E8FF;
-  color: #7C3AED;
+  background: var(--chip-datetime-bg);
+  color: var(--chip-datetime-text);
 }
 
 /* #project-id */
 .gera-ref--project {
-  background: #F0FDF4;
-  color: #15803D;
+  background: var(--chip-project-bg);
+  color: var(--chip-project-text);
 }
