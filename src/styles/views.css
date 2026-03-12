@@ -53,9 +53,9 @@
 }
 
 .view-tab.active {
-  background: white;
+  background: var(--surface-primary);
   color: var(--text-primary);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 5%);
+  box-shadow: var(--shadow-sm);
 }
 
 .search-input {
@@ -491,8 +491,8 @@
 }
 
 .event-source-badge--google {
-  background: #4285F4;
-  color: white;
+  background: var(--google-blue);
+  color: var(--surface-primary);
   font-weight: 600;
   title: 'Google Calendar';
 }
@@ -542,6 +542,7 @@
   flex-direction: column;
   gap: 12px;
   min-height: 0;
+  padding-right: 4px;
 }
 
 /* Timeline variant: two independently-scrolling panes stacked vertically */
@@ -558,6 +559,7 @@
   flex-direction: column;
   gap: 8px;
   padding-bottom: 8px;
+  padding-right: 4px;
 }
 
 .timeline-scheduled-empty {
@@ -571,8 +573,8 @@
    UNSCHEDULED TASKS BLOCK (Timeline view)
    ============================================ */
 .unscheduled-block {
-  flex: 0 0 33%;
-  min-height: 0;
+  flex: 0 1 33%;
+  min-height: 160px;
   background: var(--surface-secondary);
   border-radius: var(--radius-lg, 12px);
   padding: 12px;
@@ -630,6 +632,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding-right: 4px;
 }
 
 .unscheduled-block-empty {
@@ -780,8 +783,8 @@
 }
 
 .note-tile-delete-btn:hover {
-  background: #fee2e2;
-  color: #ef4444;
+  background: var(--color-danger-subtle);
+  color: var(--color-danger);
 }
 
 .note-tile-title {
@@ -936,8 +939,8 @@
 }
 
 .note-tile-badge--project {
-  background: #F0FDF4;
-  color: #15803D;
+  background: var(--chip-project-bg);
+  color: var(--chip-project-text);
 }
 /* Note Editor Mode — when a note is opened for editing */
 .notes-view--editor-mode {
@@ -978,13 +981,13 @@
 }
 
 .metadata-chip--event {
-  background-color: #e0edff;
-  color: #2563eb;
+  background-color: var(--chip-event-bg);
+  color: var(--chip-event-text);
 }
 
 .metadata-chip--project {
-  background-color: #e6f4ea;
-  color: #16a34a;
+  background-color: var(--chip-project-bg);
+  color: var(--chip-project-text);
 }
 
 .metadata-chip-remove {
@@ -1099,7 +1102,7 @@
 }
 
 .note-error {
-  color: var(--color-error, #ef4444);
+  color: var(--color-danger);
 }
 
 /* MDXEditor Overrides for Gera Design */
@@ -1109,12 +1112,34 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif !important;
+  color: var(--text-primary) !important;
+}
+
+/* Override MDXEditor's internal Radix-based color tokens for dark mode.
+   MDXEditor uses --baseText (for body text) and --baseTextContrast (for toolbar SVG icons)
+   derived from its own --slate-* palette which defaults to light mode values. */
+[data-theme="dark"] .mdxeditor {
+  --baseText: var(--text-primary);
+  --baseTextContrast: var(--text-primary);
+  --basePageBg: var(--surface-primary);
+  --baseBg: var(--surface-secondary);
+  --baseBase: var(--surface-primary);
+}
+
+.mdxeditor-root-contenteditable {
+  color: var(--text-primary) !important;
+}
+
+/* Target toolbar SVG icons directly — MDXEditor sets color on svg elements explicitly,
+   which wins over button color inheritance. */
+.mdxeditor-toolbar svg {
+  color: var(--editor-toolbar-icon) !important;
 }
 
 /* MDXEditor Toolbar */
 .mdxeditor-toolbar {
-  background: #f9fafb !important;
-  border-bottom: 1px solid #e5e7eb !important;
+  background: var(--editor-toolbar-bg) !important;
+  border-bottom: 1px solid var(--editor-toolbar-border) !important;
   padding: 8px 12px !important;
   gap: 4px !important;
   flex-wrap: wrap !important;
@@ -1125,44 +1150,46 @@
   border-radius: 6px !important;
   border: 1px solid transparent !important;
   background: transparent !important;
-  color: #4b5563 !important;
+  color: var(--editor-toolbar-icon) !important;
+  opacity: 1 !important;
+  filter: none !important;
   font-size: 14px !important;
   cursor: pointer !important;
   transition: all 0.15s ease !important;
 }
 
 .mdxeditor-toolbar button:hover {
-  background: #ffffff !important;
-  border-color: #d1d5db !important;
-  color: #1f2937 !important;
+  background: var(--surface-primary) !important;
+  border-color: var(--surface-secondary) !important;
+  color: var(--editor-toolbar-icon-active) !important;
 }
 
 .mdxeditor-toolbar button[data-active='true'],
 .mdxeditor-toolbar button[aria-pressed='true'] {
-  background: #dbeafe !important;
-  border-color: #93c5fd !important;
-  color: #1e40af !important;
+  background: var(--accent-blue-subtle) !important;
+  border-color: var(--accent-blue-light) !important;
+  color: var(--editor-toolbar-icon-active) !important;
 }
 
 .mdxeditor-toolbar select {
   padding: 6px 10px !important;
   border-radius: 6px !important;
-  border: 1px solid #d1d5db !important;
-  background: #ffffff !important;
-  color: #1f2937 !important;
+  border: 1px solid var(--surface-secondary) !important;
+  background: var(--surface-primary) !important;
+  color: var(--text-primary) !important;
   font-size: 14px !important;
   cursor: pointer !important;
 }
 
 .mdxeditor-toolbar select:hover {
-  border-color: #93c5fd !important;
+  border-color: var(--accent-blue-light) !important;
 }
 
 /* Toolbar separator */
 .mdxeditor-toolbar > div[role='separator'] {
   width: 1px !important;
   height: 24px !important;
-  background: #d1d5db !important;
+  background: var(--surface-secondary) !important;
   margin: 0 4px !important;
 }
 
@@ -1171,6 +1198,8 @@
   font-size: 14px !important;
   line-height: 1.6 !important;
   color: var(--text-primary) !important;
+  opacity: 1 !important;
+  filter: none !important;
   background: transparent !important;
 }
 

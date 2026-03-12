@@ -27,6 +27,7 @@ import {
 import { $isListItemNode } from '@lexical/list';
 import { useAppStore } from '../stores/useAppStore';
 import { $createGeraRefNode } from './GeraRefNode';
+import { DateTimePicker } from '../components/shared/DateTimePicker';
 import './GeraRefTypeahead.css';
 
 /* ------------------------------------------------------------------ */
@@ -129,14 +130,11 @@ export function GeraRefTypeahead(): JSX.Element | null {
   const [eventFilter, setEventFilter] = useState('');
 
   // Absolute form state
-  const [dateValue, setDateValue] = useState('');
-  const [timeValue, setTimeValue] = useState('');
+  const [absoluteValue, setAbsoluteValue] = useState('');
 
   const contextRef = useRef(context);
   contextRef.current = context;
   const popupRef = useRef<HTMLDivElement>(null);
-  const dateInputRef = useRef<HTMLInputElement>(null);
-  const timeInputRef = useRef<HTMLInputElement>(null);
   const lastAutoDatetimeRef = useRef<string | null>(null);
 
   /* ---- derived ---- */
@@ -198,8 +196,7 @@ export function GeraRefTypeahead(): JSX.Element | null {
       setForcedPanel(null);
       setSelectedIndex(0);
       setEventFilter('');
-      setDateValue('');
-      setTimeValue('');
+      setAbsoluteValue('');
       setRelation('on');
       setAmount(1);
       setUnit('D');
@@ -296,11 +293,8 @@ export function GeraRefTypeahead(): JSX.Element | null {
   const openAbsolutePanel = useCallback(() => {
     const now = new Date();
     setForcedPanel('absolute');
-    setDateValue(now.toISOString().slice(0, 10));
-    setTimeValue(now.toTimeString().slice(0, 5));
+    setAbsoluteValue(now.toISOString().slice(0, 16));
     setSelectedIndex(0);
-    // Focus the date input after React renders
-    requestAnimationFrame(() => dateInputRef.current?.focus());
   }, []);
 
   const openEventRefPanel = useCallback(() => {
@@ -311,53 +305,6 @@ export function GeraRefTypeahead(): JSX.Element | null {
     setEventFilter('');
     setSelectedIndex(0);
   }, []);
-
-  /* ---- keydown handler for date/time inputs ---- */
-  const handleAbsoluteKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') {
-        const d = dateInputRef.current?.value ?? dateValue;
-        const t = timeInputRef.current?.value ?? timeValue;
-        if (d && t) {
-          e.preventDefault();
-          e.stopPropagation();
-          completeAbsolute(`${d}T${t}`);
-        }
-        return;
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        dismiss();
-        editor.focus();
-        return;
-      }
-      if (e.key === 'Tab') {
-        if (!e.shiftKey && e.currentTarget === dateInputRef.current) {
-          e.preventDefault();
-          timeInputRef.current?.focus();
-          return;
-        }
-        if (e.shiftKey && e.currentTarget === timeInputRef.current) {
-          e.preventDefault();
-          dateInputRef.current?.focus();
-          return;
-        }
-        // Tab from time (no shift) → complete if valid
-        if (!e.shiftKey && e.currentTarget === timeInputRef.current) {
-          const d = dateInputRef.current?.value ?? dateValue;
-          const t = timeInputRef.current?.value ?? timeValue;
-          if (d && t) {
-            e.preventDefault();
-            e.stopPropagation();
-            completeAbsolute(`${d}T${t}`);
-          }
-          return;
-        }
-      }
-    },
-    [dateValue, timeValue, completeAbsolute, dismiss, editor],
-  );
 
   /* ---- keyboard ---- */
 
@@ -394,10 +341,9 @@ export function GeraRefTypeahead(): JSX.Element | null {
         return true;
       }
       if (panel === 'absolute') {
-        if (dateValue && timeValue) {
-          const iso = `${dateValue}T${timeValue}`;
+        if (absoluteValue) {
           e?.preventDefault();
-          completeAbsolute(iso);
+          completeAbsolute(absoluteValue);
           return true;
         }
         return false;
@@ -412,21 +358,6 @@ export function GeraRefTypeahead(): JSX.Element | null {
     }, COMMAND_PRIORITY_LOW);
 
     const unregTab = editor.registerCommand(KEY_TAB_COMMAND, (e) => {
-      if (panel === 'absolute') {
-        // Tab from date → time input
-        if (document.activeElement === dateInputRef.current) {
-          e?.preventDefault();
-          timeInputRef.current?.focus();
-          return true;
-        }
-        // Tab from time → complete if valid
-        if (document.activeElement === timeInputRef.current && dateValue && timeValue) {
-          e?.preventDefault();
-          completeAbsolute(`${dateValue}T${timeValue}`);
-          return true;
-        }
-        return false;
-      }
       if (panel === 'event-ref' && filteredEvents.length > 0) {
         e?.preventDefault();
         const ev = filteredEvents[selectedIndex] ?? filteredEvents[0];
@@ -443,7 +374,7 @@ export function GeraRefTypeahead(): JSX.Element | null {
     }, COMMAND_PRIORITY_LOW);
 
     return () => { unregDown(); unregUp(); unregEnter(); unregTab(); unregEsc(); };
-  }, [context, panel, filteredEvents, selectedIndex, editor, dismiss, completeEvent, completeAbsolute, openAbsolutePanel, openEventRefPanel, dateValue, timeValue]);
+  }, [context, panel, filteredEvents, selectedIndex, editor, dismiss, completeEvent, completeAbsolute, openAbsolutePanel, openEventRefPanel, absoluteValue]);
 
   /* ---- click outside ---- */
   useEffect(() => {
@@ -509,34 +440,19 @@ export function GeraRefTypeahead(): JSX.Element | null {
       {/* ---- ABSOLUTE DATE-TIME ---- */}
       {panel === 'absolute' && (
         <div className="gera-typeahead__absolute">
-          <div className="gera-typeahead__hint">Enter date and time</div>
-          <div className="gera-typeahead__datetime-row">
-            <input
-              ref={dateInputRef}
-              type="date"
-              className="gera-typeahead__input"
-              value={dateValue}
-              onChange={(e) => setDateValue(e.target.value)}
-              onKeyDown={handleAbsoluteKeyDown}
-            />
-            <input
-              ref={timeInputRef}
-              type="time"
-              className="gera-typeahead__input"
-              value={timeValue}
-              onChange={(e) => setTimeValue(e.target.value)}
-              onKeyDown={handleAbsoluteKeyDown}
-            />
-          </div>
-          {dateValue && timeValue && (
-            <div className="gera-typeahead__preview">
-              @{dateValue}T{timeValue}
-            </div>
-          )}
-          <div className="gera-typeahead__hint-small">
-            {dateValue && timeValue
-              ? 'Press Enter to insert · Tab to switch fields'
-              : 'Or type directly: @YYYY-MM-DDTHH:MM'}
+          <DateTimePicker
+            value={absoluteValue}
+            onChange={setAbsoluteValue}
+          />
+          <div className="gera-typeahead__absolute-actions">
+            <button
+              type="button"
+              className="gera-typeahead__insert-btn"
+              disabled={!absoluteValue}
+              onClick={() => absoluteValue && completeAbsolute(absoluteValue)}
+            >
+              Insert
+            </button>
           </div>
         </div>
       )}

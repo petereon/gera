@@ -7,7 +7,7 @@
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background-color: #ffffff;
+  background-color: var(--surface-primary);
   border-radius: 0.75rem;
   overflow: hidden;
 }
@@ -20,14 +20,16 @@
 
 /* MDXEditor Toolbar Styling */
 .note-editor .mdxeditor-toolbar {
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--editor-toolbar-bg);
+  border-bottom: 1px solid var(--editor-toolbar-border);
   padding: 8px 44px 8px 12px;
   gap: 4px;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 /* Close button — always top-right of the toolbar, regardless of wrapping */
@@ -40,8 +42,8 @@
   width: 32px;
   height: 32px;
   border: none;
-  background: #ef4444 !important;
-  color: #ffffff !important;
+  background: var(--color-danger) !important;
+  color: var(--color-danger-contrast) !important;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
@@ -54,9 +56,9 @@
 }
 
 .note-editor .mdxeditor-toolbar .note-editor-close-btn:hover {
-  background: #b91c1c !important;
+  background: var(--color-danger-hover) !important;
   border-color: transparent;
-  color: #ffffff !important;
+  color: var(--color-danger-contrast) !important;
 }
 
 .note-editor .mdxeditor-toolbar button {
@@ -64,39 +66,30 @@
   border-radius: 6px;
   border: 1px solid transparent;
   background: transparent;
-  color: #4b5563;
+  color: var(--editor-toolbar-icon) !important;
+  opacity: 1 !important;
+  filter: none !important;
   font-size: 14px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
-
 .note-editor .mdxeditor-toolbar button:hover {
-  background: #ffffff;
-  border-color: #d1d5db;
-  color: #1f2937;
+  background: var(--surface-primary);
+  border-color: var(--surface-secondary);
+  color: var(--editor-toolbar-icon-active);
 }
-
 .note-editor .mdxeditor-toolbar button[data-active='true'] {
-  background: #dbeafe;
-  border-color: #93c5fd;
-  color: #1e40af;
+  background: var(--accent-blue-subtle);
+  border-color: var(--accent-blue-light);
+  color: var(--accent-blue);
 }
-
-.note-editor .mdxeditor-toolbar .mdxeditor-toolbar-separator {
-  width: 1px;
-  height: 24px;
-  background: #d1d5db;
-  margin: 0 4px;
-}
-
-/* MDXEditor content area styling */
 .note-editor .mdxeditor-root-contenteditable {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   font-size: 1rem;
   line-height: 1.5;
-  color: #1f2937;
+  color: var(--text-primary) !important;
   padding: 20px;
 }
 
@@ -129,34 +122,34 @@
 
 .note-editor h1 {
   font-size: 2rem;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .note-editor h2 {
   font-size: 1.5rem;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .note-editor h3 {
   font-size: 1.25rem;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 .note-editor h4 {
   font-size: 1.125rem;
-  color: #4b5563;
+  color: var(--text-secondary);
 }
 
 .note-editor h5,
 .note-editor h6 {
   font-size: 1rem;
-  color: #6b7280;
+  color: var(--text-tertiary);
 }
 
 /* Code block styling */
 .note-editor pre {
-  background-color: #f3f4f6;
-  border: 1px solid #e5e7eb;
+  background-color: var(--surface-secondary);
+  border: 1px solid var(--surface-secondary);
   border-radius: 0.5rem;
   padding: 1rem;
   overflow-x: auto;
@@ -166,7 +159,7 @@
 .note-editor code {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'Courier New', monospace;
   font-size: 0.875rem;
-  background-color: #f3f4f6;
+  background-color: var(--surface-secondary);
   padding: 0.125rem 0.25rem;
   border-radius: 0.25rem;
 }
@@ -177,43 +170,31 @@
 }
 
 /* List styling */
-.note-editor ul,
-.note-editor ol {
-  margin-left: 1.5rem;
-  margin-top: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.note-editor li {
-  margin-bottom: 0.25rem;
-}
-
-/* Blockquote styling */
-.note-editor blockquote {
-  border-left: 4px solid #d1d5db;
-  padding-left: 1rem;
-  margin-left: 0;
-  margin-right: 0;
-  color: #6b7280;
-  font-style: italic;
-}
-
-/* Link styling */
 .note-editor a {
-  color: #2563eb;
+  color: var(--accent-blue);
   text-decoration: underline;
   cursor: pointer;
   transition: color 0.15s ease;
 }
-
 .note-editor a:hover {
-  color: #1d4ed8;
+  color: var(--accent-blue);
+}
+
+
+/* Blockquote styling */
+.note-editor blockquote {
+  border-left: 4px solid var(--surface-secondary);
+  padding-left: 1rem;
+  margin-left: 0;
+  margin-right: 0;
+  color: var(--text-secondary);
+  font-style: italic;
 }
 
 /* Selection styling */
 .note-editor ::selection {
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color: var(--accent-blue-subtle);
+  color: var(--accent-blue);
 }
 
 /* Focus styles for better UX */
@@ -248,10 +229,10 @@
   cursor: pointer;
   width: 1rem;
   height: 1rem;
-  accent-color: #2563eb;
+  accent-color: var(--accent-blue);
 }
 
 .note-editor .task-list-item.completed {
-  color: #9ca3af;
+  color: var(--text-tertiary);
   text-decoration: line-through;
 }

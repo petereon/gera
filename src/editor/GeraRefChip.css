@@ -28,45 +28,45 @@
 
 .gera-ref-chip:hover {
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--task-shadow);
 }
 
 /* Event references: @event-id (blue - matches task-tag--event) */
 .gera-ref-chip--event {
-  background-color: #e0edff;
-  color: #2563eb;
+  background-color: var(--chip-event-bg);
+  color: var(--chip-event-text);
 }
 
 .gera-ref-chip--event:hover {
-  background-color: #dbeafe;
+  background-color: var(--accent-blue-subtle);
 }
 
 /* Datetime references: @2026-03-01T09:00 (amber - matches task-tag--deadline) */
 .gera-ref-chip--datetime {
-  background-color: #fef3c7;
-  color: #b45309;
+  background-color: var(--chip-datetime-bg);
+  color: var(--chip-datetime-text);
 }
 
 .gera-ref-chip--datetime:hover {
-  background-color: #fde68a;
+  background-color: var(--chip-datetime-bg);
 }
 
 /* Before references: @before[2d]:event-id (amber - matches task-tag--deadline) */
 .gera-ref-chip--before {
-  background-color: #fef3c7;
-  color: #b45309;
+  background-color: var(--chip-deadline-bg);
+  color: var(--chip-deadline-text);
 }
 
 .gera-ref-chip--before:hover {
-  background-color: #fde68a;
+  background-color: var(--chip-deadline-bg);
 }
 
 /* Project references: #project-id (green - matches task-tag--project) */
 .gera-ref-chip--project {
-  background-color: #e6f4ea;
-  color: #16a34a;
+  background-color: var(--chip-project-bg);
+  color: var(--chip-project-text);
 }
 
 .gera-ref-chip--project:hover {
-  background-color: #dcfce7;
+  background-color: var(--chip-project-bg);
 }

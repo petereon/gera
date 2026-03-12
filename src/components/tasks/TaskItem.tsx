@@ -9,6 +9,7 @@ import { formatEventDate, formatEventTime } from '../../utils/dateFormatting';
 import { toggleTask, updateTask, deleteTask } from '../../api';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { useAppStore } from '../../stores/useAppStore';
+import { DateTimePicker } from '../shared/DateTimePicker';
 
 interface TaskItemProps {
   task: TaskEntity;
@@ -48,6 +49,7 @@ export function TaskItem({ task }: TaskItemProps) {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState('');
   const [editEventIds, setEditEventIds] = useState<string[]>([]);
+  const [editDeadline, setEditDeadline] = useState('');
   const [showEventPicker, setShowEventPicker] = useState(false);
   const [eventSearch, setEventSearch] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,6 +82,8 @@ export function TaskItem({ task }: TaskItemProps) {
     setEditText(display);
     // For both standalone and note tasks, start with whatever @tokens are already in the task line
     setEditEventIds([...ownEventIdsInText]);
+    // Pre-fill deadline from parsed value; datetime-local expects "YYYY-MM-DDTHH:MM"
+    setEditDeadline(task.deadline ? task.deadline.slice(0, 16) : '');
     setEditing(true);
   };
 
@@ -87,6 +91,7 @@ export function TaskItem({ task }: TaskItemProps) {
     setEditing(false);
     setEditText('');
     setEditEventIds([]);
+    setEditDeadline('');
     setShowEventPicker(false);
     setEventSearch('');
   };
@@ -96,11 +101,11 @@ export function TaskItem({ task }: TaskItemProps) {
     if (!baseText || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      // For both standalone and note tasks: append @event-id tokens to the task line.
-      // Inherited (frontmatter) events are not touched — they live in the note's YAML, not the task line.
-      const fullText = editEventIds.length > 0
-        ? `${baseText} ${editEventIds.map((id) => `@${id}`).join(' ')}`
-        : baseText;
+      // Build tokens: deadline first, then event IDs
+      const tokens: string[] = [];
+      if (editDeadline) tokens.push(`@${editDeadline}`);
+      editEventIds.forEach((id) => tokens.push(`@${id}`));
+      const fullText = tokens.length > 0 ? `${baseText} ${tokens.join(' ')}` : baseText;
       await updateTask(task.source_file, task.line_number, fullText);
       closeEdit();
     } catch (err) {
@@ -214,6 +219,18 @@ export function TaskItem({ task }: TaskItemProps) {
               autoFocus
               disabled={isSubmitting}
             />
+
+            {/* Deadline / time */}
+            <div className="task-modal-events">
+              <span className="task-modal-events-label">Due date / time</span>
+              <DateTimePicker
+                value={editDeadline}
+                onChange={setEditDeadline}
+                disabled={isSubmitting}
+                placeholder="No due date"
+                clearable
+              />
+            </div>
 
             {/* Event associations */}
             <div className="task-modal-events">

@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import { useState, useEffect } from 'react';
+import ThemeToggle from '../shared/ThemeToggle';
 import {
   authenticateGoogle,
   listGoogleAccounts,
@@ -9,12 +10,12 @@ import {
   SyncResult,
 } from '../../api';
 
-interface GoogleAccountsModalProps {
+interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function GoogleAccountsModal({ isOpen, onClose }: GoogleAccountsModalProps) {
+export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [accounts, setAccounts] = useState<TokenData[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState<string | null>(null);
@@ -100,55 +101,70 @@ export function GoogleAccountsModal({ isOpen, onClose }: GoogleAccountsModalProp
 
   return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-panel google-accounts-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-panel settings-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <p className="modal-title">Google Calendar Accounts</p>
+          <p className="modal-title">Settings</p>
           <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
 
         <div className="modal-content">
-          {error && (
-            <div className="error-banner">
-              <p className="error-text">{error}</p>
+          <div style={{ marginBottom: 16 }}>
+            <p className="section-label">Appearance</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <p style={{ margin: 0, fontWeight: 600 }}>Theme</p>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 13 }}>Light / Dark</p>
+              </div>
+              <ThemeToggle />
             </div>
-          )}
+          </div>
 
-          {accounts.length === 0 ? (
-            <div className="empty-state">
-              <p>No Google accounts connected yet</p>
-            </div>
-          ) : (
-            <div className="accounts-list">
-              {accounts.map((account) => (
-                <div key={account.account_email} className="account-item">
-                  <div className="account-info">
-                    <p className="account-email">{account.account_email || 'Unknown'}</p>
-                    {syncResults[account.account_email || ''] && (
-                      <p className="sync-status">
-                        Synced: {syncResults[account.account_email || ''].created} created,{' '}
-                        {syncResults[account.account_email || ''].updated} updated
-                      </p>
-                    )}
+          <div>
+            <p className="section-label">Google Calendar Accounts</p>
+
+            {error && (
+              <div className="error-banner">
+                <p className="error-text">{error}</p>
+              </div>
+            )}
+
+            {accounts.length === 0 ? (
+              <div className="empty-state">
+                <p>No Google accounts connected yet</p>
+              </div>
+            ) : (
+              <div className="accounts-list">
+                {accounts.map((account) => (
+                  <div key={account.account_email} className="account-item">
+                    <div className="account-info">
+                      <p className="account-email">{account.account_email || 'Unknown'}</p>
+                      {syncResults[account.account_email || ''] && (
+                        <p className="sync-status">
+                          Synced: {syncResults[account.account_email || ''].created} created,{' '}
+                          {syncResults[account.account_email || ''].updated} updated
+                        </p>
+                      )}
+                    </div>
+                    <div className="account-actions">
+                      <button
+                        className="btn btn--sm btn--primary"
+                        onClick={() => handleSync(account.account_email)}
+                        disabled={syncing === account.account_email}
+                      >
+                        {syncing === account.account_email ? 'Syncing...' : 'Sync Now'}
+                      </button>
+                      <button
+                        className="btn btn--sm btn--danger"
+                        onClick={() => handleRemoveAccount(account.account_email)}
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
-                  <div className="account-actions">
-                    <button
-                      className="btn btn--sm btn--primary"
-                      onClick={() => handleSync(account.account_email)}
-                      disabled={syncing === account.account_email}
-                    >
-                      {syncing === account.account_email ? 'Syncing...' : 'Sync Now'}
-                    </button>
-                    <button
-                      className="btn btn--sm btn--danger"
-                      onClick={() => handleRemoveAccount(account.account_email)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="modal-footer">
@@ -168,3 +184,5 @@ export function GoogleAccountsModal({ isOpen, onClose }: GoogleAccountsModalProp
     document.body
   );
 }
+
+export default SettingsModal;

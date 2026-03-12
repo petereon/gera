@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { InboxIcon, CalendarIcon, DocumentIcon, ChevronLeftIcon, ChevronRightIcon, CogIcon } from '../icons/Icons';
-import { GoogleAccountsModal } from '../accounts/GoogleAccountsModal';
+import { SettingsModal } from '../settings/SettingsModal';
 
 interface SidebarProps {
   isPortrait?: boolean;
@@ -9,7 +9,7 @@ interface SidebarProps {
 
 export function Sidebar({ isPortrait = false }: SidebarProps) {
   const [expanded, setExpanded] = useState(false);
-  const [showGoogleAccounts, setShowGoogleAccounts] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname.split('/')[1] || 'tasks';
@@ -63,18 +63,18 @@ export function Sidebar({ isPortrait = false }: SidebarProps) {
         <div className="sidebar-spacer"></div>
         <button
           className="sidebar-block sidebar-settings-btn"
-          onClick={() => setShowGoogleAccounts(true)}
-          title="Google Calendar settings"
+          onClick={() => setShowSettings(true)}
+          title="Settings"
         >
           <div className="sidebar-block-icon"><CogIcon /></div>
           <span className="sidebar-block-label">Settings</span>
         </button>
       </div>
 
-      {/* Google Accounts Modal */}
-      <GoogleAccountsModal
-        isOpen={showGoogleAccounts}
-        onClose={() => setShowGoogleAccounts(false)}
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
       />
     </>
   );
