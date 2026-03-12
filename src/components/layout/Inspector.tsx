@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../stores/useAppStore';
 import { 
-  VideoIcon, 
   ClockIcon, 
   UsersIcon, 
   MoreIcon, 
@@ -175,10 +174,7 @@ function InspectorContent({
               )}
             </div>
 
-            <button className="btn-primary">
-              <VideoIcon />
-              Join Video Call
-            </button>
+            {/* Join Video Call intentionally hidden */}
           </div>
         ) : (
           <div className="inspector-content">

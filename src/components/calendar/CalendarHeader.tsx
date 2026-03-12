@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
+import { listGoogleAccounts } from '../../api';
 import { ChevronLeftIcon, ChevronRightIcon } from '../icons/Icons';
 import { CalendarView } from '../../stores/useCalendarStore';
 
@@ -22,6 +23,7 @@ interface CalendarHeaderProps {
 export function CalendarHeader({ monthYear, calendarView, effectiveView, onViewChange, onPrevious, onNext, onToday, onRefresh }: CalendarHeaderProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const [hasAccounts, setHasAccounts] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -32,6 +34,41 @@ export function CalendarHeader({ monthYear, calendarView, effectiveView, onViewC
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const accts = await listGoogleAccounts();
+        if (!mounted) return;
+        setHasAccounts(Array.isArray(accts) && accts.filter((a) => !!a.account_email).length > 0);
+      } catch (e) {
+        // ignore — treat as no accounts
+        if (mounted) setHasAccounts(false);
+      }
+    };
+    load();
+
+    const handler = (ev: Event) => {
+      try {
+        const detail = (ev as CustomEvent).detail as any[] | undefined;
+        if (Array.isArray(detail)) {
+          setHasAccounts(detail.filter((a) => !!a.account_email).length > 0);
+        } else {
+          // fallback: re-load
+          load();
+        }
+      } catch {
+        load();
+      }
+    };
+
+    window.addEventListener('google-accounts-changed', handler as EventListener);
+    return () => {
+      mounted = false;
+      window.removeEventListener('google-accounts-changed', handler as EventListener);
+    };
+  }, []);
+
   return (
     <div className="calendar-header">
       <div className="calendar-header-left">
@@ -39,9 +76,11 @@ export function CalendarHeader({ monthYear, calendarView, effectiveView, onViewC
         <h2 className="calendar-month">{monthYear}</h2>
       </div>
       <div className="calendar-header-right">
-        <button className="refresh-btn" onClick={onRefresh} title="Refresh events">
-          Refresh
-        </button>
+        {hasAccounts && (
+          <button className="refresh-btn" onClick={onRefresh} title="Refresh events">
+            Refresh
+          </button>
+        )}
         <button className="today-btn" onClick={onToday}>Today</button>
 
         {/* View picker */}

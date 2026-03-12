@@ -380,6 +380,24 @@ export async function deleteEvent(id: string): Promise<void> {
   return pyInvoke<void>("delete_event", { id });
 }
 
+export interface CreateEventRequest {
+  id: string;
+  source?: string;
+  from_: string;
+  to: string;
+  name: string;
+  description?: string;
+  location?: string;
+  participants?: string[];
+  metadata?: Partial<EventMetadata>;
+}
+
+/** Create a new event in events.yaml. */
+export async function createEvent(req: CreateEventRequest): Promise<EventEntity> {
+  const response = await pyInvoke<{ event: EventEntity }>("create_event", req);
+  return response.event;
+}
+
 // ============================================================================
 // GOOGLE CALENDAR OAUTH & SYNC (STUB)
 // ============================================================================

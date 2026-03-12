@@ -76,8 +76,8 @@ _TASK_PAT = re.compile(r"^[-*+] \[([ xX])\] (.+)")
 _TIME_PAT = re.compile(
     r"@(?:"
     r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})"  # group 1: absolute datetime
-    r"|(\w+?)\[(\d+)([YMWdhm])\]:([\w\-:]+)"  # groups 2-5: modifier[offset]:target
-    r"|([\w\-]+)"  # group 6: plain @event-id
+    r"|(\w+?)\[(\d+)([YMWdhm])\]:([\w\-\.:]+)"  # groups 2-5: modifier[offset]:target (allow dot)
+    r"|([\w\-\.]+)"  # group 6: plain @event-id (allow dot)
     r")"
 )
 
