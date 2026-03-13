@@ -952,13 +952,40 @@
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-md);
   overflow: hidden;
+  /* Reset the padding from .notes-view so the chip bar can go edge-to-edge */
+  padding: 0;
+  gap: 0;
+}
+
+/* Header bar — same effective position as section-header-row inside .notes-view */
+.note-editor-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  flex-shrink: 0;
+}
+
+.note-editor-topbar .section-label {
+  margin-bottom: 0;
+}
+
+.note-close-btn {
+  background: var(--color-danger) !important;
+  color: white !important;
+}
+
+.note-close-btn:hover {
+  background: var(--color-danger-hover) !important;
 }
 
 .note-metadata-chips {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
-  padding: 12px 20px;
+  padding: 8px 20px;
+  border-top: 1px solid var(--surface-secondary);
   border-bottom: 1px solid var(--surface-secondary);
   background: var(--surface-primary);
 }

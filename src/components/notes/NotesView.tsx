@@ -152,7 +152,25 @@ export function NotesView({}: NotesViewProps) {
           <div className="note-error">{loadError}</div>
         ) : (
           <>
-            {/* Frontmatter metadata chips — always shown when a note is open */}
+            {/* Header row — mirrors the notes grid section-header-row */}
+            <div className="note-editor-topbar">
+              <div className="section-label">NOTE</div>
+              <button
+                className="icon-btn note-close-btn"
+                onClick={() => {
+                  setSelectedNote(null);
+                  if (returnView) {
+                    setReturnView(null);
+                    navigate(returnView);
+                  }
+                }}
+                aria-label="Close note"
+                title="Close note"
+              >
+                ✕
+              </button>
+            </div>
+            {/* Frontmatter metadata chips */}
             <div className="note-metadata-chips">
               {eventIds.map((id) => {
                 const event = events.find((e) => e.id === id);
@@ -221,13 +239,6 @@ export function NotesView({}: NotesViewProps) {
                 projectIds={projectIds}
                 autoSave={true}
                 autoSaveDelay={1000}
-                onClose={() => {
-                  setSelectedNote(null);
-                  if (returnView) {
-                    setReturnView(null);
-                    navigate(returnView);
-                  }
-                }}
               />
             </div>
           </>

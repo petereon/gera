@@ -74,12 +74,34 @@ export function NoteEditor({
   autoSaveDelay = 1000,
 }: NoteEditorProps): JSX.Element {
   const editorRef = useRef<MDXEditorMethods>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Tracks the last body content we wrote, so external reload can skip our own saves
   const lastSavedBodyRef = useRef<string>(content);
 
   const focusLine = useAppStore((state) => state.focusLine);
   const setFocusLine = useAppStore((state) => state.setFocusLine);
+
+  // Preserve scroll position when a task-list checkbox is toggled.
+  // Lexical scrolls its selection into view after the state update, which resets
+  // the viewport to the top if the internal selection lands at position 0.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as Element;
+      const isCheckbox =
+        target.closest('li[role="checkbox"]') != null ||
+        (target instanceof HTMLInputElement && target.type === 'checkbox');
+      if (!isCheckbox) return;
+      const scroll = el.querySelector<HTMLElement>('.mdxeditor-root-contenteditable');
+      if (!scroll) return;
+      const savedTop = scroll.scrollTop;
+      requestAnimationFrame(() => { scroll.scrollTop = savedTop; });
+    };
+    el.addEventListener('mousedown', onMouseDown);
+    return () => el.removeEventListener('mousedown', onMouseDown);
+  }, []);
 
   // Scroll to target task when navigating via cross-reference
   useEffect(() => {
@@ -224,16 +246,6 @@ export function NoteEditor({
           <InsertThematicBreak />
           <Separator />
           <InsertTable />
-          {onClose && (
-            <button
-              className="note-editor-close-btn"
-              onClick={onClose}
-              aria-label="Close note"
-              title="Close note"
-            >
-              ✕
-            </button>
-          )}
         </>
       ),
     }),
@@ -260,7 +272,7 @@ export function NoteEditor({
   ];
 
   return (
-    <div className="note-editor">
+    <div className="note-editor" ref={containerRef}>
       <MDXEditor
         ref={editorRef}
         markdown={content}
