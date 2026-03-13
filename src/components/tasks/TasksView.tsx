@@ -108,7 +108,7 @@ export function TasksView({}: TasksViewProps) {
         <SearchInput
           value={tasksSearch}
           onChange={setTasksSearch}
-          placeholder="Search by event, project, time-range..."
+          placeholder="Search by event or project"
           className="tasks-search"
           focusTrigger={searchFocusTrigger}
         />

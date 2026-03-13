@@ -324,7 +324,7 @@ export function NotesView({}: NotesViewProps) {
         <SearchInput
           value={notesSearch}
           onChange={setNotesSearch}
-          placeholder="Search by event, project, time-range..."
+          placeholder="Search by event or project"
           className="notes-search"
           focusTrigger={searchFocusTrigger}
         />
