@@ -116,51 +116,55 @@ body {
 
 /* Dark theme overrides */
 :root[data-theme="dark"] {
-  /* Backgrounds */
-  --app-bg: #000000;
-  --surface-primary: #101010;
-  --surface-secondary: #1d1d1d;
-  --surface-tertiary: #242424;
+  /* Backgrounds — blue-gray character aligned with light mode palette */
+  --app-bg: #0B0F16;
+  --surface-primary: #141B26;
+  --surface-secondary: #1B2332;
+  --surface-tertiary: #202C3B;
 
   /* Text */
-  --text-primary: #E6EEF8;
-  --text-secondary: #AAB7C8;
-  --text-tertiary: #8F9BA8;
+  --text-primary: #E8EEF6;
+  --text-secondary: #8FA3BC;
+  --text-tertiary: #546070;
 
   /* Accent (Brand Color) */
-  --accent-blue: #4F9AD6;
-  --accent-blue-light: #76B0E0;
-  --accent-blue-subtle: rgba(79,154,214,0.12);
+  --accent-blue: #5B9BD5;
+  --accent-blue-light: #7FB4E0;
+  --accent-blue-subtle: rgba(91, 155, 213, 0.14);
 
-  /* Shadows (darker background) */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.6);
-  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.65);
-  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.7);
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.50);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.60);
 
   color: var(--text-primary);
   background-color: var(--app-bg);
 
-  /* Dark chips */
   /* Editor toolbar tokens (dark) */
   --editor-toolbar-bg: var(--surface-secondary);
   --editor-toolbar-border: var(--surface-tertiary);
   --editor-toolbar-icon: var(--text-primary);
   --editor-toolbar-icon-active: var(--accent-blue);
-  --chip-event-bg: var(--accent-blue-subtle);
-  --chip-event-text: var(--accent-blue);
-  --chip-project-bg: rgba(16, 163, 74, 0.08);
-  --chip-project-text: #16a34a;
-  --chip-deadline-bg: rgba(250, 204, 21, 0.12);
-  --chip-deadline-text: #f59e0b;
-  --chip-datetime-bg: rgba(124, 58, 237, 0.08);
-  --chip-datetime-text: #c4b5fd;
 
-  /* Hover and subtle surface tokens for dark theme */
-  --accent-blue-hover: #376a91;
-  --accent-blue-shadow: rgba(79,154,214,0.22);
-  --surface-accent: rgba(79,154,214,0.06);
+  /* Chips */
+  --chip-event-bg: rgba(91, 155, 213, 0.14);
+  --chip-event-text: #7EB8F0;
+  --chip-project-bg: rgba(34, 197, 94, 0.10);
+  --chip-project-text: #4ADE80;
+  --chip-deadline-bg: rgba(251, 191, 36, 0.12);
+  --chip-deadline-text: #FCD34D;
+  --chip-datetime-bg: rgba(167, 139, 250, 0.12);
+  --chip-datetime-text: #A78BFA;
+
+  /* Danger */
+  --color-danger-subtle: rgba(239, 68, 68, 0.12);
+
+  /* Hover and subtle surface tokens */
+  --accent-blue-hover: #4a86be;
+  --accent-blue-shadow: rgba(91, 155, 213, 0.20);
+  --surface-accent: rgba(91, 155, 213, 0.08);
   --on-accent: #ffffff;
-  --task-shadow: 0 1px 2px rgba(255,255,255,0.02);
+  --task-shadow: 0 1px 3px rgba(0, 0, 0, 0.30);
 
   /* Scrollbar */
   --scrollbar-thumb: rgba(255, 255, 255, 0.18);

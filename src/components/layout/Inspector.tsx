@@ -126,7 +126,6 @@ function InspectorContent({
       <div className="island-pane context-inspector">
         <div className="section-header-row">
           <div className="section-label">CONTEXT INSPECTOR</div>
-          {closeButton ?? <button className="icon-btn"><MoreIcon /></button>}
         </div>
 
         {selectedEvent ? (

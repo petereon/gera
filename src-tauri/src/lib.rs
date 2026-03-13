@@ -25,7 +25,7 @@ fn set_theme(window: tauri::WebviewWindow, dark: bool) {
     #[cfg(target_os = "macos")]
     {
         if dark {
-            set_window_bg_color(&window, 0.0, 0.0, 0.0);
+            set_window_bg_color(&window, 11.0 / 255.0, 15.0 / 255.0, 22.0 / 255.0);
         } else {
             set_window_bg_color(&window, 232.0 / 255.0, 237.0 / 255.0, 244.0 / 255.0);
         }
