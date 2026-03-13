@@ -20,6 +20,9 @@ export function NotesView({}: NotesViewProps) {
   const setSelectedNote = useAppStore((state) => state.setSelectedNote);
   const returnView = useAppStore((state) => state.returnView);
   const setReturnView = useAppStore((state) => state.setReturnView);
+  const pendingCreate = useAppStore((state) => state.pendingCreate);
+  const setPendingCreate = useAppStore((state) => state.setPendingCreate);
+  const searchFocusTrigger = useAppStore((state) => state.searchFocusTrigger);
   const navigate = useNavigate();
 
   const { filteredNotes } = useNoteFiltering(notes, notesSearch);
@@ -35,6 +38,26 @@ export function NotesView({}: NotesViewProps) {
   const [showEventPicker, setShowEventPicker] = useState(false);
   const [eventSearch, setEventSearch] = useState('');
   const pickerRef = useRef<HTMLDivElement>(null);
+  const pickerSearchRef = useRef<HTMLInputElement>(null);
+
+  // Escape closes the note editor and returns to grid
+  useEffect(() => {
+    if (!selectedNote) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setSelectedNote(null);
+        if (returnView) { setReturnView(null); navigate(returnView); }
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [selectedNote, returnView, setSelectedNote, setReturnView, navigate]);
+
+  // Focus search input when event picker opens
+  useEffect(() => {
+    if (showEventPicker) pickerSearchRef.current?.focus();
+  }, [showEventPicker]);
 
   // Close picker when clicking outside
   useEffect(() => {
@@ -136,6 +159,15 @@ export function NotesView({}: NotesViewProps) {
     }
   };
 
+  useEffect(() => {
+    if (pendingCreate === 'note') {
+      setPendingCreate(null);
+      handleCreateNote();
+    }
+  // handleCreateNote is stable — intentionally omitted from deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingCreate, setPendingCreate]);
+
   // Events not yet linked, filtered by search
   const availableEvents = events.filter(
     (e) => !eventIds.includes(e.id) &&
@@ -205,11 +237,21 @@ export function NotesView({}: NotesViewProps) {
                 {showEventPicker && (
                   <div className="metadata-event-picker">
                     <input
+                      ref={pickerSearchRef}
                       className="metadata-picker-search"
                       placeholder="Search events…"
                       value={eventSearch}
                       onChange={(e) => setEventSearch(e.target.value)}
-                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          (pickerRef.current?.querySelector<HTMLButtonElement>('.metadata-picker-item'))?.focus();
+                        } else if (e.key === 'Escape') {
+                          e.stopPropagation();
+                          setShowEventPicker(false);
+                          setEventSearch('');
+                        }
+                      }}
                     />
                     <div className="metadata-picker-list">
                       {availableEvents.length === 0 ? (
@@ -220,6 +262,23 @@ export function NotesView({}: NotesViewProps) {
                             key={e.id}
                             className="metadata-picker-item"
                             onClick={() => addEventId(e.id)}
+                            onKeyDown={(ev) => {
+                              if (ev.key === 'ArrowDown') {
+                                ev.preventDefault();
+                                ev.stopPropagation();
+                                (ev.currentTarget.nextElementSibling as HTMLButtonElement | null)?.focus();
+                              } else if (ev.key === 'ArrowUp') {
+                                ev.preventDefault();
+                                ev.stopPropagation();
+                                const prev = ev.currentTarget.previousElementSibling as HTMLButtonElement | null;
+                                if (prev) prev.focus();
+                                else pickerRef.current?.querySelector<HTMLInputElement>('.metadata-picker-search')?.focus();
+                              } else if (ev.key === 'Escape') {
+                                ev.stopPropagation();
+                                setShowEventPicker(false);
+                                setEventSearch('');
+                              }
+                            }}
                           >
                             {e.name}
                           </button>
@@ -267,6 +326,7 @@ export function NotesView({}: NotesViewProps) {
           onChange={setNotesSearch}
           placeholder="Search by event, project, time-range..."
           className="notes-search"
+          focusTrigger={searchFocusTrigger}
         />
       </div>
       <div className="notes-content">

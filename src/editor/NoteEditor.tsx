@@ -69,7 +69,7 @@ export function NoteEditor({
   eventIds = [],
   projectIds = [],
   onSave,
-  onClose,
+  onClose: _onClose,
   autoSave = true,
   autoSaveDelay = 1000,
 }: NoteEditorProps): JSX.Element {
@@ -81,6 +81,13 @@ export function NoteEditor({
 
   const focusLine = useAppStore((state) => state.focusLine);
   const setFocusLine = useAppStore((state) => state.setFocusLine);
+
+  // Auto-focus the editor content area when the note opens.
+  useEffect(() => {
+    const t = setTimeout(() => editorRef.current?.focus(), 80);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Preserve scroll position when a task-list checkbox is toggled.
   // Lexical scrolls its selection into view after the state update, which resets

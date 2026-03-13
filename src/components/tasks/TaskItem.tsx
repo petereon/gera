@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { TaskEntity } from '../../types';
@@ -23,6 +24,8 @@ export function TaskItem({ task }: TaskItemProps) {
   const allTasks = useAppStore((state) => state.tasks);
   const setSelectedNote = useAppStore((state) => state.setSelectedNote);
   const setFocusLine = useAppStore((state) => state.setFocusLine);
+  const pendingFocusTask = useAppStore((state) => state.pendingFocusTask);
+  const setPendingFocusTask = useAppStore((state) => state.setPendingFocusTask);
   const navigate = useNavigate();
 
   // Which event IDs appear literally as @id tokens in the task text (vs. inherited from note frontmatter)
@@ -54,8 +57,35 @@ export function TaskItem({ task }: TaskItemProps) {
   const [eventSearch, setEventSearch] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const itemRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
+  const editPanelRef = useRef<HTMLDivElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const pickerSearchRef = useRef<HTMLInputElement>(null);
+  useFocusTrap(editPanelRef);
+
+  // Focus and scroll into view when selected from command palette
+  useEffect(() => {
+    if (!pendingFocusTask) return;
+    if (pendingFocusTask.source_file === task.source_file && pendingFocusTask.line_number === task.line_number) {
+      itemRef.current?.focus();
+      itemRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setPendingFocusTask(null);
+    }
+  }, [pendingFocusTask, task.source_file, task.line_number, setPendingFocusTask]);
+
+  // Escape closes the edit modal from anywhere
+  useEffect(() => {
+    if (!editing) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') closeEdit(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [editing]);
+
+  // Focus search input when event picker opens
+  useEffect(() => {
+    if (showEventPicker) pickerSearchRef.current?.focus();
+  }, [showEventPicker]);
 
   // Close picker when clicking outside
   useEffect(() => {
@@ -153,7 +183,16 @@ export function TaskItem({ task }: TaskItemProps) {
 
   return (
     <>
-      <div className="task-item" onClick={openEdit}>
+      <div
+        ref={itemRef}
+        className="task-item"
+        tabIndex={0}
+        onClick={openEdit}
+        onKeyDown={(e) => {
+          if (e.key === ' ') { e.preventDefault(); handleToggle(); }
+          else if (e.key === 'Enter') { e.preventDefault(); openEdit(); }
+        }}
+      >
         <div onClick={(e) => e.stopPropagation()}>
           <Checkbox checked={task.completed} onChange={handleToggle} />
         </div>
@@ -199,7 +238,7 @@ export function TaskItem({ task }: TaskItemProps) {
 
       {editing && createPortal(
         <div className="modal-backdrop" ref={backdropRef} onClick={handleBackdropClick}>
-          <div className="modal-panel">
+          <div className="modal-panel" ref={editPanelRef}>
             <div className="modal-header">
               <h3 className="modal-title">Edit Task</h3>
               <button
@@ -274,11 +313,21 @@ export function TaskItem({ task }: TaskItemProps) {
                   {showEventPicker && (
                     <div className="metadata-event-picker">
                       <input
+                        ref={pickerSearchRef}
                         className="metadata-picker-search"
                         placeholder="Search events…"
                         value={eventSearch}
                         onChange={(e) => setEventSearch(e.target.value)}
-                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            (pickerRef.current?.querySelector<HTMLButtonElement>('.metadata-picker-item'))?.focus();
+                          } else if (e.key === 'Escape') {
+                            e.stopPropagation();
+                            setShowEventPicker(false);
+                            setEventSearch('');
+                          }
+                        }}
                       />
                       <div className="metadata-picker-list">
                         {allEvents
@@ -296,6 +345,23 @@ export function TaskItem({ task }: TaskItemProps) {
                                 setEditEventIds((ids) => [...ids, e.id]);
                                 setShowEventPicker(false);
                                 setEventSearch('');
+                              }}
+                              onKeyDown={(ev) => {
+                                if (ev.key === 'ArrowDown') {
+                                  ev.preventDefault();
+                                  ev.stopPropagation();
+                                  (ev.currentTarget.nextElementSibling as HTMLButtonElement | null)?.focus();
+                                } else if (ev.key === 'ArrowUp') {
+                                  ev.preventDefault();
+                                  ev.stopPropagation();
+                                  const prev = ev.currentTarget.previousElementSibling as HTMLButtonElement | null;
+                                  if (prev) prev.focus();
+                                  else pickerRef.current?.querySelector<HTMLInputElement>('.metadata-picker-search')?.focus();
+                                } else if (ev.key === 'Escape') {
+                                  ev.stopPropagation();
+                                  setShowEventPicker(false);
+                                  setEventSearch('');
+                                }
                               }}
                             >
                               {e.name}

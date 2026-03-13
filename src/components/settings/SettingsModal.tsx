@@ -1,6 +1,8 @@
 import { createPortal } from 'react-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import ThemeToggle from '../shared/ThemeToggle';
+import { KeybindingsSettings } from './KeybindingsSettings';
 import {
   authenticateGoogle,
   listGoogleAccounts,
@@ -10,12 +12,17 @@ import {
   SyncResult,
 } from '../../api';
 
+type Tab = 'general' | 'calendars' | 'keybindings';
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef);
+  const [tab, setTab] = useState<Tab>('general');
   const [accounts, setAccounts] = useState<TokenData[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState<string | null>(null);
@@ -27,6 +34,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       loadAccounts();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [isOpen, onClose]);
 
   const loadAccounts = async () => {
     try {
@@ -101,14 +115,36 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-panel settings-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-panel settings-modal" ref={panelRef} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <p className="modal-title">Settings</p>
           <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
 
-        <div className="modal-content">
-          <div style={{ marginBottom: 16 }}>
+        {/* Tab bar */}
+        <div className="settings-tabs">
+          <button
+            className={`settings-tab${tab === 'general' ? ' settings-tab--active' : ''}`}
+            onClick={() => setTab('general')}
+          >
+            General
+          </button>
+          <button
+            className={`settings-tab${tab === 'calendars' ? ' settings-tab--active' : ''}`}
+            onClick={() => setTab('calendars')}
+          >
+            Calendars
+          </button>
+          <button
+            className={`settings-tab${tab === 'keybindings' ? ' settings-tab--active' : ''}`}
+            onClick={() => setTab('keybindings')}
+          >
+            Keybindings
+          </button>
+        </div>
+
+        {tab === 'general' && (
+          <div className="modal-content">
             <p className="section-label">Appearance</p>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <div>
@@ -118,8 +154,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <ThemeToggle />
             </div>
           </div>
+        )}
 
-          <div>
+        {tab === 'calendars' && (
+          <div className="modal-content">
             <p className="section-label">Google Calendar Accounts</p>
 
             {error && (
@@ -128,57 +166,53 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </div>
             )}
 
-            {accounts.length === 0 ? (
-              <div className="empty-state">
-                <p>No Google accounts connected yet</p>
-              </div>
-            ) : (
-              <div className="accounts-list">
-                {accounts.map((account) => (
-                  <div key={account.account_email} className="account-item">
-                    <div className="account-info">
-                      <p className="account-email">{account.account_email || 'Unknown'}</p>
-                      {syncResults[account.account_email || ''] && (
-                        <p className="sync-status">
-                          Synced: {syncResults[account.account_email || ''].created} created,{' '}
-                          {syncResults[account.account_email || ''].updated} updated
-                        </p>
-                      )}
-                    </div>
-                    <div className="account-actions">
-                      <button
-                        className="btn btn--sm btn--primary"
-                        onClick={() => handleSync(account.account_email)}
-                        disabled={syncing === account.account_email}
-                      >
-                        {syncing === account.account_email ? 'Syncing...' : 'Sync Now'}
-                      </button>
-                      <button
-                        className="btn btn--sm btn--danger"
-                        onClick={() => handleRemoveAccount(account.account_email)}
-                      >
-                        Remove
-                      </button>
-                    </div>
+            <div className="accounts-list">
+              {accounts.map((account) => (
+                <div key={account.account_email} className="account-item">
+                  <div className="account-info">
+                    <p className="account-email">{account.account_email || 'Unknown'}</p>
+                    {syncResults[account.account_email || ''] && (
+                      <p className="sync-status">
+                        Synced: {syncResults[account.account_email || ''].created} created,{' '}
+                        {syncResults[account.account_email || ''].updated} updated
+                      </p>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+                  <div className="account-actions">
+                    <button
+                      className="btn btn--sm btn--primary"
+                      onClick={() => handleSync(account.account_email)}
+                      disabled={syncing === account.account_email}
+                    >
+                      {syncing === account.account_email ? 'Syncing...' : 'Sync Now'}
+                    </button>
+                    <button
+                      className="btn btn--sm btn--danger"
+                      onClick={() => handleRemoveAccount(account.account_email)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
 
-        <div className="modal-footer">
-          <button
-            className="btn btn--primary"
-            onClick={handleAddAccount}
-            disabled={loading}
-          >
-            {loading ? 'Authenticating...' : 'Add Google Account'}
-          </button>
-          <button className="btn btn--secondary" onClick={onClose}>
-            Close
-          </button>
-        </div>
+              <button
+                className="account-add-row"
+                onClick={handleAddAccount}
+                disabled={loading}
+              >
+                <span className="account-add-icon">+</span>
+                {loading ? 'Authenticating…' : 'Add Google Account'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {tab === 'keybindings' && (
+          <div className="modal-content">
+            <KeybindingsSettings />
+          </div>
+        )}
       </div>
     </div>,
     document.body

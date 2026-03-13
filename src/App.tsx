@@ -6,11 +6,14 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { useAppStore } from "./stores/useAppStore";
 import { useGeraSync } from "./hooks/useGeraSync";
 import { useWindowWidth } from "./hooks/useWindowWidth";
+import { useKeyboard } from "./hooks/useKeyboard";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Inspector } from "./components/layout/Inspector";
 import { TasksView } from "./components/tasks/TasksView";
 import { CalendarView } from "./components/calendar/CalendarView";
 import { NotesView } from "./components/notes/NotesView";
+import { CommandPalette } from "./components/command-palette/CommandPalette";
+import { SettingsModal } from "./components/settings/SettingsModal";
 
 /** Below this window width, the inspector collapses into a modal overlay. */
 const PORTRAIT_BREAKPOINT = 1000;
@@ -19,11 +22,15 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const currentPath = location.pathname.split("/")[1] || "tasks";
   const loading = useAppStore((state) => state.loading);
+  const settingsOpen = useAppStore((state) => state.settingsOpen);
+  const setSettingsOpen = useAppStore((state) => state.setSettingsOpen);
   const width = useWindowWidth();
   const isPortrait = width < PORTRAIT_BREAKPOINT;
 
   // Setup data sync and listen to filesystem changes
   useGeraSync();
+  // Register global keyboard shortcuts
+  useKeyboard();
 
   if (loading) {
     return (
@@ -38,13 +45,17 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const showInspectorColumn = isCalendar && !isPortrait;
 
   return (
-    <div className={`app-container ${showInspectorColumn ? "" : "no-inspector"}${isPortrait ? " portrait" : ""}`}>
-      <Sidebar isPortrait={isPortrait} />
-      <main className="main-content">
-        {children}
-      </main>
-      <Inspector isVisible={isCalendar} isModal={isPortrait} />
-    </div>
+    <>
+      <div className={`app-container ${showInspectorColumn ? "" : "no-inspector"}${isPortrait ? " portrait" : ""}`}>
+        <Sidebar isPortrait={isPortrait} />
+        <main className="main-content">
+          {children}
+        </main>
+        <Inspector isVisible={isCalendar} isModal={isPortrait} />
+      </div>
+      <CommandPalette />
+      <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+    </>
   );
 }
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { EventEntity, NoteEntity } from '../../types';
 import { getAllDayEventsForDay } from '../../utils/eventPositioning';
 import { useAppStore } from '../../stores/useAppStore';
@@ -38,6 +38,22 @@ export function CalendarGrid({
   };
   const setSelectedEvent = useAppStore((s) => s.setSelectedEvent);
   const setSelectedNote = useAppStore((s) => s.setSelectedNote);
+  const pendingCreate = useAppStore((s) => s.pendingCreate);
+  const setPendingCreate = useAppStore((s) => s.setPendingCreate);
+
+  // Open event create modal at the current time when triggered via command palette
+  useEffect(() => {
+    if (pendingCreate !== 'event') return;
+    setPendingCreate(null);
+    const now = new Date();
+    const end = new Date(now.getTime() + 60 * 60 * 1000);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const toLocalIso = (d: Date) =>
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+    setCreateFromIso(toLocalIso(now));
+    setCreateToIso(toLocalIso(end));
+    setCreating(true);
+  }, [pendingCreate, setPendingCreate]);
 
   return (
     <div className="calendar-grid" style={gridStyle}>

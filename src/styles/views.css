@@ -732,11 +732,12 @@
 
 .notes-content {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  padding: 3px;
+  margin: -3px;
 }
 
 .notes-grid {
-  overflow-y: auto;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 12px;
@@ -758,6 +759,16 @@
   background: var(--accent-blue-subtle);
   box-shadow: var(--shadow-sm);
   transform: translateY(-2px);
+}
+
+.note-tile:focus {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 1px;
+  background: var(--accent-blue-subtle);
+}
+
+.note-tile:focus .note-tile-delete-btn {
+  opacity: 1;
 }
 
 .note-tile-delete-btn {
@@ -788,12 +799,14 @@
 }
 
 .note-tile-title {
+  padding-right: 36px;
   font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -804,6 +817,7 @@
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   line-height: 1.5;
@@ -1100,9 +1114,11 @@
   text-overflow: ellipsis;
 }
 
-.metadata-picker-item:hover {
+.metadata-picker-item:hover,
+.metadata-picker-item:focus {
   background: var(--accent-blue-subtle);
   color: var(--accent-blue);
+  outline: none;
 }
 
 .metadata-picker-empty {

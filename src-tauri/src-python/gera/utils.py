@@ -10,13 +10,11 @@ def get_emit(handle: AppHandle) -> Callable[[str, str], None]:
 
 
 def body_preview(body: str, max_len: int = 100) -> str:
-    """First *max_len* characters of body text, stripped of leading headings/whitespace."""
-    text = body.lstrip().removeprefix("#").lstrip()
-    # Remove the first heading line
-    lines = text.split("\n")
-    for i, line in enumerate(lines):
-        stripped = line.strip()
-        if stripped and not stripped.startswith("#"):
-            text = "\n".join(lines[i:])
-            break
+    """First *max_len* characters of body text, skipping only the leading title heading."""
+    lines = body.splitlines()
+    # Skip consecutive heading lines at the top (the title block)
+    i = 0
+    while i < len(lines) and lines[i].lstrip().startswith("#"):
+        i += 1
+    text = "\n".join(lines[i:]).strip()
     return text[:max_len].strip()

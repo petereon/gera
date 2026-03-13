@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { createEvent, listEvents } from '../../api';
 import { useAppStore } from '../../stores/useAppStore';
 import { DateTimePicker } from '../shared/DateTimePicker';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface EventCreateModalProps {
   fromIso: string; // ISO or datetime-local substring
@@ -31,20 +32,29 @@ export function EventCreateModal({ fromIso, toIso, onClose }: EventCreateModalPr
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const backdropRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const setEvents = useAppStore((s) => s.setEvents);
+
+  useFocusTrap(panelRef);
 
   useEffect(() => {
     nameInputRef.current?.focus();
   }, []);
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === backdropRef.current) onClose();
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  const handleSingleLineKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); handleSave(); }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') onClose();
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === backdropRef.current) onClose();
   };
 
   const addParticipant = () => {
@@ -106,8 +116,8 @@ export function EventCreateModal({ fromIso, toIso, onClose }: EventCreateModalPr
   };
 
   return createPortal(
-    <div className="modal-backdrop" ref={backdropRef} onClick={handleBackdropClick} onKeyDown={handleKeyDown}>
-      <div className="modal-panel event-edit-modal" role="dialog" aria-modal="true">
+    <div className="modal-backdrop" ref={backdropRef} onClick={handleBackdropClick}>
+      <div className="modal-panel event-edit-modal" role="dialog" aria-modal="true" ref={panelRef}>
         <div className="modal-header">
           <h2 className="modal-title">New Event</h2>
         </div>
@@ -120,6 +130,7 @@ export function EventCreateModal({ fromIso, toIso, onClose }: EventCreateModalPr
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onKeyDown={handleSingleLineKeyDown}
             placeholder="Event name"
           />
         </div>
@@ -142,6 +153,7 @@ export function EventCreateModal({ fromIso, toIso, onClose }: EventCreateModalPr
             type="text"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
+            onKeyDown={handleSingleLineKeyDown}
             placeholder="Add location"
           />
         </div>

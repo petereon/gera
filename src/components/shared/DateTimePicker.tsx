@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './DateTimePicker.css';
 
@@ -105,6 +105,8 @@ export function DateTimePicker({
 
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const hourSpinnerRef = useRef<HTMLDivElement>(null);
+  const minuteSpinnerRef = useRef<HTMLDivElement>(null);
 
   // Position popover below (or above) the trigger
   const updatePosition = () => {
@@ -147,21 +149,46 @@ export function DateTimePicker({
       }
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') { e.stopImmediatePropagation(); setOpen(false); }
     };
     document.addEventListener('mousedown', onMouseDown);
-    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keydown', onKeyDown, true);
     return () => {
       document.removeEventListener('mousedown', onMouseDown);
-      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('keydown', onKeyDown, true);
     };
   }, [open]);
+
+  // Auto-focus the selected or today's day button when the popover opens
+  useLayoutEffect(() => {
+    if (!open || !popoverRef.current) return;
+    const targetDay = parsed?.day ?? todayDay;
+    const btns = Array.from(popoverRef.current.querySelectorAll<HTMLButtonElement>('.dtp-day:not(.dtp-day--empty)'));
+    const btn = btns.find((b) => parseInt(b.textContent ?? '', 10) === targetDay) ?? btns[0];
+    btn?.focus();
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePopoverKeyDown = (e: React.KeyboardEvent) => {
+    const btns = Array.from(popoverRef.current?.querySelectorAll<HTMLButtonElement>('.dtp-day:not(.dtp-day--empty)') ?? []);
+    if (btns.length === 0) return;
+    const idx = btns.indexOf(document.activeElement as HTMLButtonElement);
+    if (idx === -1) return;
+
+    if (e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); btns[Math.min(idx + 1, btns.length - 1)]?.focus(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); btns[Math.max(idx - 1, 0)]?.focus(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); btns[Math.min(idx + 7, btns.length - 1)]?.focus(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); btns[Math.max(idx - 7, 0)]?.focus(); }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      handleDayClick(parseInt(btns[idx].textContent ?? '', 10), includeTime);
+    }
+  };
 
   // Calendar grid
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const firstDow = new Date(viewYear, viewMonth, 1).getDay(); // 0=Sun
 
-  const handleDayClick = (day: number) => {
+  const handleDayClick = (day: number, focusTime = false) => {
     const existing = parseValue(value);
     const hour = existing?.hour ?? 9;
     const minute = existing?.minute ?? 0;
@@ -170,6 +197,8 @@ export function DateTimePicker({
     onChange(built);
     if (!includeTime) {
       setOpen(false);
+    } else if (focusTime) {
+      setTimeout(() => hourSpinnerRef.current?.focus(), 0);
     }
   };
 
@@ -192,7 +221,7 @@ export function DateTimePicker({
   const displayLabel = formatDisplay(value, includeTime);
 
   const popover = (
-    <div ref={popoverRef} className="dtp-popover" style={popoverStyle}>
+    <div ref={popoverRef} className="dtp-popover" style={popoverStyle} onKeyDown={handlePopoverKeyDown}>
       {/* Month navigation */}
       <div className="dtp-nav">
         <button
@@ -256,10 +285,20 @@ export function DateTimePicker({
       {includeTime && (
         <div className="dtp-time">
           {/* Hour spinner */}
-          <div className="dtp-spinner">
+          <div
+            ref={hourSpinnerRef}
+            className="dtp-spinner"
+            tabIndex={parsed ? 0 : -1}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowUp')    { e.preventDefault(); e.stopPropagation(); handleHourChange(1); }
+              else if (e.key === 'ArrowDown')  { e.preventDefault(); e.stopPropagation(); handleHourChange(-1); }
+              else if (e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); minuteSpinnerRef.current?.focus(); }
+            }}
+          >
             <button
               type="button"
               className="dtp-spinner__btn"
+              tabIndex={-1}
               disabled={!parsed}
               onClick={() => handleHourChange(1)}
             >
@@ -271,6 +310,7 @@ export function DateTimePicker({
             <button
               type="button"
               className="dtp-spinner__btn"
+              tabIndex={-1}
               disabled={!parsed}
               onClick={() => handleHourChange(-1)}
             >
@@ -281,10 +321,20 @@ export function DateTimePicker({
           <span className="dtp-time__colon">:</span>
 
           {/* Minute spinner */}
-          <div className="dtp-spinner">
+          <div
+            ref={minuteSpinnerRef}
+            className="dtp-spinner"
+            tabIndex={parsed ? 0 : -1}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowUp')   { e.preventDefault(); e.stopPropagation(); handleMinuteChange(1); }
+              else if (e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); handleMinuteChange(-1); }
+              else if (e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); hourSpinnerRef.current?.focus(); }
+            }}
+          >
             <button
               type="button"
               className="dtp-spinner__btn"
+              tabIndex={-1}
               disabled={!parsed}
               onClick={() => handleMinuteChange(1)}
             >
@@ -296,6 +346,7 @@ export function DateTimePicker({
             <button
               type="button"
               className="dtp-spinner__btn"
+              tabIndex={-1}
               disabled={!parsed}
               onClick={() => handleMinuteChange(-1)}
             >
