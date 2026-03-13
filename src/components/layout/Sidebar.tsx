@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { InboxIcon, CalendarIcon, DocumentIcon, ChevronLeftIcon, ChevronRightIcon, CogIcon } from '../icons/Icons';
-import { SettingsModal } from '../settings/SettingsModal';
+import { useAppStore } from '../../stores/useAppStore';
 
 interface SidebarProps {
   isPortrait?: boolean;
@@ -9,7 +9,7 @@ interface SidebarProps {
 
 export function Sidebar({ isPortrait = false }: SidebarProps) {
   const [expanded, setExpanded] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const setSettingsOpen = useAppStore((s) => s.setSettingsOpen);
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname.split('/')[1] || 'tasks';
@@ -63,19 +63,13 @@ export function Sidebar({ isPortrait = false }: SidebarProps) {
         <div className="sidebar-spacer"></div>
         <button
           className="sidebar-block sidebar-settings-btn"
-          onClick={() => setShowSettings(true)}
+          onClick={() => setSettingsOpen(true)}
           title="Settings"
         >
           <div className="sidebar-block-icon"><CogIcon /></div>
           <span className="sidebar-block-label">Settings</span>
         </button>
       </div>
-
-      {/* Settings Modal */}
-      <SettingsModal
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
-      />
     </>
   );
 }

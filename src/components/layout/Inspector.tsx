@@ -2,10 +2,9 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../stores/useAppStore';
-import { 
-  ClockIcon, 
-  UsersIcon, 
-  MoreIcon, 
+import {
+  ClockIcon,
+  UsersIcon,
   DocumentIcon,
   PencilIcon,
   CloseIcon,
@@ -107,7 +106,7 @@ function InspectorContent({
   navigate,
   setSelectedNote,
   setReturnView,
-  closeButton,
+  closeButton: _closeButton,
 }: {
   selectedEvent: ReturnType<typeof useAppStore.getState>['selectedEvent'];
   linkedNotes: ReturnType<typeof useAppStore.getState>['notes'];

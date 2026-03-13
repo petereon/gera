@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
 import { useTaskFiltering } from '../../hooks/useTaskFiltering';
 import { createTask } from '../../api';
 import { SearchInput } from '../shared/SearchInput';
 import { TaskList, TasksViewMode } from './TaskList';
 import { PlusIcon } from '../icons/Icons';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface TasksViewProps {}
 
@@ -13,12 +14,24 @@ export function TasksView({}: TasksViewProps) {
   const tasks = useAppStore((state) => state.tasks);
   const tasksSearch = useAppStore((state) => state.tasksSearch);
   const setTasksSearch = useAppStore((state) => state.setTasksSearch);
+  const pendingCreate = useAppStore((state) => state.pendingCreate);
+  const setPendingCreate = useAppStore((state) => state.setPendingCreate);
+  const searchFocusTrigger = useAppStore((state) => state.searchFocusTrigger);
 
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    if (pendingCreate === 'task') {
+      setShowModal(true);
+      setPendingCreate(null);
+    }
+  }, [pendingCreate, setPendingCreate]);
   const [newTaskText, setNewTaskText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewMode, setViewMode] = useState<TasksViewMode>('timeline');
   const backdropRef = useRef<HTMLDivElement>(null);
+  const createPanelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(createPanelRef);
 
   const { filteredEventsWithTasks, filteredOtherTasks, timelineScheduledTasks, timelineUnscheduledTasks, getTasksForEvent } =
     useTaskFiltering(tasks, events, tasksSearch);
@@ -27,6 +40,13 @@ export function TasksView({}: TasksViewProps) {
     setNewTaskText('');
     setShowModal(false);
   };
+
+  useEffect(() => {
+    if (!showModal) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') closeModal(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [showModal]);
 
   const handleCreateTask = async () => {
     const text = newTaskText.trim();
@@ -77,7 +97,7 @@ export function TasksView({}: TasksViewProps) {
             
           </div>
           <button
-            className="icon-btn"
+            className="icon-btn icon-btn--accent"
             onClick={() => setShowModal(true)}
             aria-label="New task"
             title="New task"
@@ -90,6 +110,7 @@ export function TasksView({}: TasksViewProps) {
           onChange={setTasksSearch}
           placeholder="Search by event, project, time-range..."
           className="tasks-search"
+          focusTrigger={searchFocusTrigger}
         />
       </div>
       <TaskList
@@ -103,7 +124,7 @@ export function TasksView({}: TasksViewProps) {
 
       {showModal && (
         <div className="modal-backdrop" ref={backdropRef} onClick={handleBackdropClick}>
-          <div className="modal-panel">
+          <div className="modal-panel" ref={createPanelRef}>
             <h3 className="modal-title">New Task</h3>
             <input
               type="text"

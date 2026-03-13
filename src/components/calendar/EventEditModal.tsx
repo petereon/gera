@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { EventEntity, updateEvent, deleteEvent } from '../../api';
 import { TrashIcon } from '../icons/Icons';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { DateTimePicker } from '../shared/DateTimePicker';
 
 interface EventEditModalProps {
@@ -32,19 +33,28 @@ export function EventEditModal({ event, onClose }: EventEditModalProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const backdropRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useFocusTrap(panelRef);
 
   // Focus name input on open
   useEffect(() => {
     nameInputRef.current?.focus();
   }, []);
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === backdropRef.current) onClose();
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  const handleSingleLineKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); handleSave(); }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') onClose();
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === backdropRef.current) onClose();
   };
 
   const addParticipant = () => {
@@ -105,9 +115,8 @@ export function EventEditModal({ event, onClose }: EventEditModalProps) {
       className="modal-backdrop"
       ref={backdropRef}
       onClick={handleBackdropClick}
-      onKeyDown={handleKeyDown}
     >
-      <div className="modal-panel event-edit-modal" role="dialog" aria-modal="true">
+      <div className="modal-panel event-edit-modal" role="dialog" aria-modal="true" ref={panelRef}>
         {/* Header */}
         <div className="modal-header">
           <h2 className="modal-title">Edit Event</h2>
@@ -129,6 +138,7 @@ export function EventEditModal({ event, onClose }: EventEditModalProps) {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onKeyDown={handleSingleLineKeyDown}
             placeholder="Event name"
           />
         </div>
@@ -153,6 +163,7 @@ export function EventEditModal({ event, onClose }: EventEditModalProps) {
             type="text"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
+            onKeyDown={handleSingleLineKeyDown}
             placeholder="Add location"
           />
         </div>

@@ -45,10 +45,10 @@ Miscellaneous UI improvements can be expected in early future.
 Major milestones planned for the project:
 
 - [x] Packaging Gera for humans (brew, choco, installers) - __0.0.1__
+- [x] Dark mode - __0.0.3__
+- [x] Keybindings (customizable) - - __0.0.4__
 - [ ] Syncing calendar event changes back to the source calendar
-- [x] Dark mode
 - [ ] Scriptability or plugin system
-- [ ] Keybindings (customizable)
 - [ ] Sync for Outlook calendar
 - [ ] Mobile app
 - [ ] P2P sync between mobile apps and desktop apps

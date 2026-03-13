@@ -40,7 +40,12 @@ export function NoteTile({ note, onOpen }: NoteTileProps) {
     <>
       <div
         className="note-tile"
+        tabIndex={0}
         onClick={handleClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); handleClick(); }
+          if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); setConfirming(true); }
+        }}
       >
         <div className="note-tile-title">{note.title}</div>
         <div className="note-tile-preview">{note.body_preview}</div>

@@ -5,7 +5,19 @@ export interface AppStore {
   // Navigation
   activeView: 'tasks' | 'calendar' | 'notes';
   setActiveView: (view: 'tasks' | 'calendar' | 'notes') => void;
-  
+
+  // Command palette
+  commandPaletteOpen: boolean;
+  setCommandPaletteOpen: (open: boolean) => void;
+
+  // Settings modal (lifted so shortcuts can open it from anywhere)
+  settingsOpen: boolean;
+  setSettingsOpen: (open: boolean) => void;
+
+  // Pending create action — set by command palette, consumed by view components
+  pendingCreate: 'task' | 'note' | 'event' | null;
+  setPendingCreate: (action: 'task' | 'note' | 'event' | null) => void;
+
   // Data
   events: EventEntity[];
   notes: NoteEntity[];
@@ -28,6 +40,14 @@ export interface AppStore {
   setTasksSearch: (search: string) => void;
   setNotesSearch: (search: string) => void;
 
+  // Focus a specific task after navigation
+  pendingFocusTask: { source_file: string; line_number: number } | null;
+  setPendingFocusTask: (task: { source_file: string; line_number: number } | null) => void;
+
+  // Focus search bar in current view
+  searchFocusTrigger: number;
+  triggerSearchFocus: () => void;
+
   // Cross-reference navigation
   focusLine: number | null;
   setFocusLine: (line: number | null) => void;
@@ -41,7 +61,19 @@ export const useAppStore = create<AppStore>((set) => ({
   // Navigation
   activeView: 'calendar',
   setActiveView: (view) => set({ activeView: view }),
-  
+
+  // Command palette
+  commandPaletteOpen: false,
+  setCommandPaletteOpen: (commandPaletteOpen) => set({ commandPaletteOpen }),
+
+  // Settings modal
+  settingsOpen: false,
+  setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+
+  // Pending create
+  pendingCreate: null,
+  setPendingCreate: (pendingCreate) => set({ pendingCreate }),
+
   // Data
   events: [],
   notes: [],
@@ -63,6 +95,14 @@ export const useAppStore = create<AppStore>((set) => ({
   notesSearch: '',
   setTasksSearch: (tasksSearch) => set({ tasksSearch }),
   setNotesSearch: (notesSearch) => set({ notesSearch }),
+
+  // Focus a specific task after navigation
+  pendingFocusTask: null,
+  setPendingFocusTask: (pendingFocusTask) => set({ pendingFocusTask }),
+
+  // Focus search bar
+  searchFocusTrigger: 0,
+  triggerSearchFocus: () => set((s) => ({ searchFocusTrigger: s.searchFocusTrigger + 1 })),
 
   // Cross-reference navigation
   focusLine: null,

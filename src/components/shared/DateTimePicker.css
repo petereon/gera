@@ -187,6 +187,13 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.dtp-spinner:focus {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
 }
 
 .dtp-spinner__btn {
