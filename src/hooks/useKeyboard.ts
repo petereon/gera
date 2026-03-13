@@ -60,6 +60,9 @@ export function useKeyboard() {
       // All view/navigation shortcuts are suppressed when any modal is open
       if (document.querySelector('.modal-backdrop')) return;
 
+      // All shortcuts are suppressed while the onboarding tour is active
+      if (document.querySelector('.driver-popover')) return;
+
       // ── Global: navigation & settings ──
       if (matchesKeys(e, getActiveKeys('goToTasks')))    { e.preventDefault(); navigate('/tasks');    return; }
       if (matchesKeys(e, getActiveKeys('goToNotes')))    { e.preventDefault(); navigate('/notes');    return; }
