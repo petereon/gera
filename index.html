@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Gera — Schedule, tasks, and knowledge. Together.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue-light:  #7BAFD4;
+    --blue-mid:    #3D7FBF;
+    --blue-dark:   #1A4D82;
+    --blue-deeper: #0D3A6E;
+    --blue-faint:  #EBF3FA;
+    --blue-subtle: #C8DFF0;
+    --gray-50:   #F7F8FA;
+    --gray-100:  #EDEEF2;
+    --gray-200:  #D5D8E0;
+    --gray-400:  #9298A8;
+    --gray-600:  #565C6E;
+    --gray-800:  #1C2030;
+    --text:      #1c2030;
+    --text-soft: #565c6e;
+    --text-muted:#9298a8;
+    --white:     #ffffff;
+    --serif:     'Lora', Georgia, serif;
+    --sans:      'DM Sans', sans-serif;
+    --mono:      'DM Mono', monospace;
+  }
+
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--sans);
+    background: var(--white);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* ── ICON SVG REUSABLE ─────────────────────── */
+  .gera-icon {
+    display: block;
+    width: 100%; height: 100%;
+  }
+
+  /* ── NAV ───────────────────────────────────── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 48px; height: 58px;
+    background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+  }
+  .nav-brand {
+    display: flex; align-items: center; gap: 9px;
+    text-decoration: none;
+  }
+  .nav-brand-icon { width: 36px; height: 36px; border-radius: 9px; overflow: hidden; }
+  .nav-brand-name {
+    font-family: var(--serif);
+    font-size: 17px; font-weight: 600;
+    letter-spacing: -0.3px;
+    color: var(--blue-dark);
+  }
+  .nav-right {
+    display: flex; align-items: center; gap: 28px;
+  }
+  .nav-link {
+    font-size: 14px; font-weight: 400;
+    color: var(--text-soft); text-decoration: none;
+    transition: color 0.15s;
+  }
+  .nav-link:hover { color: var(--blue-dark); }
+  .nav-badge {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.04em;
+    background: #FFF3CD; color: #8B6900;
+    border: 1px solid #F5DC80;
+    border-radius: 100px; padding: 3px 9px;
+  }
+  .nav-cta {
+    background: var(--blue-dark); color: white !important;
+    padding: 7px 18px; border-radius: 8px;
+    font-weight: 500 !important; font-size: 14px !important;
+    transition: background 0.15s !important;
+  }
+  .nav-cta:hover { background: var(--blue-mid) !important; }
+
+  /* ── HERO ──────────────────────────────────── */
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 100px 48px 80px;
+    text-align: center;
+    background: var(--white);
+    position: relative; overflow: hidden;
+  }
+  .hero-bg-orb {
+    position: absolute; border-radius: 50%; pointer-events: none;
+  }
+  .hero-bg-orb-1 {
+    width: 800px; height: 800px;
+    top: -300px; left: 50%; transform: translateX(-50%);
+    background: radial-gradient(circle, rgba(123,175,212,0.10) 0%, transparent 65%);
+  }
+  .hero-bg-orb-2 {
+    width: 400px; height: 400px;
+    bottom: 60px; right: -100px;
+    background: radial-gradient(circle, rgba(26,77,130,0.06) 0%, transparent 65%);
+  }
+
+  .hero-pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12px; font-weight: 500; letter-spacing: 0.06em;
+    text-transform: uppercase; color: #8B6900;
+    background: #FFFBEB; border: 1px solid #F5DC80;
+    padding: 4px 13px; border-radius: 100px;
+    margin-bottom: 30px;
+    position: relative;
+  }
+  .hero-pill::before {
+    content: '';
+    width: 5px; height: 5px; border-radius: 50%;
+    background: #D4A017;
+    animation: blink 2.2s ease-in-out infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; } 50% { opacity: 0.3; }
+  }
+
+  .hero h1 {
+    font-family: var(--serif);
+    font-size: clamp(44px, 6vw, 74px);
+    font-weight: 500; line-height: 1.1;
+    letter-spacing: -2px;
+    color: var(--gray-800);
+    max-width: 720px; margin-bottom: 24px;
+    position: relative;
+  }
+  .hero h1 em { font-style: italic; color: var(--blue-dark); }
+
+  .hero-sub {
+    font-size: 17px; font-weight: 300;
+    color: var(--text-soft); line-height: 1.7;
+    max-width: 480px; margin: 0 auto 20px;
+    position: relative;
+  }
+
+  .hero-local-note {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 13px; color: var(--text-muted);
+    margin-bottom: 36px; position: relative;
+  }
+  .hero-local-note svg { color: var(--text-muted); flex-shrink: 0; }
+
+  .hero-actions {
+    display: flex; align-items: center; gap: 14px;
+    flex-wrap: wrap; justify-content: center;
+    position: relative;
+  }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--blue-dark); color: white;
+    font-family: var(--sans); font-size: 14px; font-weight: 500;
+    padding: 12px 26px; border-radius: 9px;
+    text-decoration: none; border: none; cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+  }
+  .btn-primary:hover { background: var(--blue-mid); transform: translateY(-1px); }
+  .btn-outline {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: transparent; color: var(--text-soft);
+    font-family: var(--sans); font-size: 14px; font-weight: 400;
+    padding: 12px 22px; border-radius: 9px;
+    text-decoration: none; border: 1px solid var(--gray-200);
+    transition: border-color 0.15s, color 0.15s;
+    cursor: pointer;
+  }
+  .btn-outline:hover { border-color: var(--blue-mid); color: var(--blue-dark); }
+
+  /* ── SCREENSHOT ────────────────────────────── */
+  .screenshot-wrap {
+    margin-top: 72px; width: 100%; max-width: 880px;
+    position: relative;
+  }
+  .screenshot-frame {
+    border-radius: 14px; overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(0,0,0,0.07),
+      0 6px 20px rgba(26,77,130,0.09),
+      0 28px 72px rgba(26,77,130,0.13);
+  }
+  .screenshot-frame img { width: 100%; display: block; }
+
+  /* Floating badges */
+  .float-badge {
+    position: absolute;
+    background: white;
+    border: 1px solid var(--gray-100);
+    border-radius: 11px; padding: 10px 16px;
+    font-size: 12px; color: var(--text-soft);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.09);
+    white-space: nowrap; line-height: 1.5;
+  }
+  .float-badge strong { font-weight: 500; color: var(--gray-800); }
+  .float-badge.badge-left {
+    left: -24px; bottom: 60px;
+  }
+  .float-badge.badge-right {
+    right: -24px; top: 80px;
+  }
+  .badge-dot {
+    display: inline-block; width: 7px; height: 7px;
+    border-radius: 50%; margin-right: 6px; vertical-align: middle;
+  }
+  .dot-green { background: #34C759; }
+  .dot-blue  { background: var(--blue-mid); }
+
+  /* ── THREE PILLARS ─────────────────────────── */
+  .pillars {
+    padding: 100px 48px;
+    background: var(--gray-50);
+    border-top: 1px solid var(--gray-100);
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .pillars-inner { max-width: 1040px; margin: 0 auto; }
+  .pillars-header { text-align: center; margin-bottom: 64px; }
+  .section-eyebrow {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--blue-mid);
+    margin-bottom: 12px;
+  }
+  .section-h {
+    font-family: var(--serif);
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 500; line-height: 1.2;
+    letter-spacing: -1px; color: var(--gray-800);
+  }
+  .section-h em { font-style: italic; color: var(--blue-dark); }
+
+  .pillars-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  @media (max-width: 760px) {
+    .pillars-grid { grid-template-columns: 1fr; }
+  }
+
+  .pillar {
+    background: white;
+    border: 1px solid var(--gray-100);
+    border-radius: 16px; padding: 30px;
+    position: relative; overflow: hidden;
+    transition: box-shadow 0.2s;
+  }
+  .pillar:hover { box-shadow: 0 4px 24px rgba(26,77,130,0.08); }
+  .pillar-number {
+    font-family: var(--serif);
+    font-size: 64px; font-weight: 600;
+    color: var(--blue-faint);
+    line-height: 1;
+    position: absolute; top: 16px; right: 22px;
+    letter-spacing: -4px;
+    user-select: none;
+  }
+  .pillar-icon {
+    width: 38px; height: 38px;
+    background: var(--blue-faint);
+    border: 1px solid var(--blue-subtle);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 20px;
+  }
+  .pillar h3 {
+    font-family: var(--serif);
+    font-size: 19px; font-weight: 500;
+    color: var(--gray-800); margin-bottom: 10px;
+    line-height: 1.25;
+  }
+  .pillar p {
+    font-size: 14px; line-height: 1.7;
+    color: var(--text-soft);
+  }
+  .pillar-tag {
+    display: inline-block; margin-top: 18px;
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    color: var(--blue-mid);
+    background: var(--blue-faint);
+    border: 1px solid var(--blue-subtle);
+    padding: 3px 9px; border-radius: 5px;
+  }
+
+  /* ── LOCAL FIRST ───────────────────────────── */
+  .local {
+    padding: 100px 48px;
+    max-width: 1040px; margin: 0 auto;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 80px; align-items: center;
+  }
+  @media (max-width: 760px) {
+    .local { grid-template-columns: 1fr; gap: 48px; }
+  }
+
+  .local-text .section-eyebrow { margin-bottom: 12px; }
+  .local-text .section-h { max-width: 380px; margin-bottom: 28px; }
+  .local-text p {
+    font-size: 15px; line-height: 1.75;
+    color: var(--text-soft); margin-bottom: 32px;
+  }
+  .local-points { display: flex; flex-direction: column; gap: 18px; }
+  .local-point {
+    display: flex; align-items: flex-start; gap: 14px;
+  }
+  .local-point-icon {
+    flex-shrink: 0; width: 32px; height: 32px;
+    border-radius: 8px; background: var(--blue-faint);
+    border: 1px solid var(--blue-subtle);
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 1px;
+  }
+  .local-point-text h4 {
+    font-size: 14px; font-weight: 500;
+    color: var(--gray-800); margin-bottom: 3px;
+  }
+  .local-point-text p {
+    font-size: 13px; color: var(--text-muted);
+    line-height: 1.6; margin: 0;
+  }
+
+  /* File preview widget */
+  .file-preview {
+    background: var(--gray-800);
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  }
+  .file-preview-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .file-preview-dots { display: flex; gap: 6px; }
+  .fdot {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .fdot-r { background: #FF5F56; }
+  .fdot-y { background: #FFBD2E; }
+  .fdot-g { background: #27C93F; }
+  .file-preview-name {
+    font-family: var(--mono); font-size: 12px;
+    color: rgba(255,255,255,0.4); margin-left: 8px;
+  }
+  .file-preview-body {
+    padding: 20px 22px;
+    font-family: var(--mono); font-size: 12.5px;
+    line-height: 1.9;
+  }
+  .fc-gray   { color: rgba(255,255,255,0.3); }
+  .fc-white  { color: rgba(255,255,255,0.85); }
+  .fc-blue   { color: #7BAFD4; }
+  .fc-green  { color: #7CC08A; }
+  .fc-yellow { color: #E5C07B; }
+  .fc-purple { color: #C792EA; }
+  .fc-pink   { color: #F07178; }
+
+  /* ── COMPARISONS ───────────────────────────── */
+  .compare {
+    padding: 100px 48px;
+    background: var(--gray-50);
+    border-top: 1px solid var(--gray-100);
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .compare-inner { max-width: 1040px; margin: 0 auto; }
+  .compare-header { text-align: center; margin-bottom: 56px; }
+  .compare-header .section-h { margin: 12px 0 0; }
+  .compare-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  @media (max-width: 760px) {
+    .compare-grid { grid-template-columns: 1fr; }
+  }
+  .compare-card {
+    background: white;
+    border: 1px solid var(--gray-100);
+    border-radius: 16px; padding: 28px;
+    transition: box-shadow 0.2s;
+  }
+  .compare-card:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+  .compare-vs {
+    font-family: var(--sans);
+    font-size: 11px; font-weight: 500; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+  .compare-card h3 {
+    font-family: var(--serif);
+    font-size: 18px; font-weight: 500;
+    color: var(--gray-800); margin-bottom: 14px;
+    line-height: 1.3;
+  }
+  .compare-row {
+    display: flex; gap: 10px;
+    font-size: 13px; line-height: 1.5;
+    margin-bottom: 10px;
+  }
+  .compare-row:last-child { margin-bottom: 0; }
+  .compare-row.them { color: var(--text-muted); }
+  .compare-row.us { color: var(--blue-dark); }
+  .compare-label {
+    flex-shrink: 0;
+    font-weight: 500; font-size: 10px; letter-spacing: 0.05em;
+    text-transform: uppercase; padding-top: 2px;
+    width: 36px;
+  }
+  .label-them { color: var(--text-muted); }
+  .label-us   { color: var(--blue-mid); }
+  .compare-divider {
+    border: none; border-top: 1px solid var(--gray-100);
+    margin: 14px 0;
+  }
+
+  /* ── MARKDOWN EXTRACT ──────────────────────── */
+  .extract {
+    padding: 100px 48px;
+    max-width: 1040px; margin: 0 auto;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 80px; align-items: center;
+  }
+  @media (max-width: 760px) {
+    .extract { grid-template-columns: 1fr; gap: 48px; }
+  }
+  .extract-visual {
+    position: relative;
+  }
+  .md-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 14px; padding: 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    font-family: var(--mono); font-size: 13px;
+    line-height: 1.85; color: var(--text-soft);
+  }
+  .md-h  { font-weight: 500; color: var(--gray-800); font-size: 14px; }
+  .md-task-line { display: flex; align-items: center; gap: 8px; }
+  .md-task-box {
+    width: 12px; height: 12px; border-radius: 3px;
+    border: 1.5px solid var(--gray-300, #c0c4d0);
+    flex-shrink: 0;
+  }
+  .md-task-box.checked {
+    background: var(--blue-dark); border-color: var(--blue-dark);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .md-task-box.checked::after {
+    content: '';
+    width: 5px; height: 3px;
+    border-left: 1.5px solid white;
+    border-bottom: 1.5px solid white;
+    transform: rotate(-45deg) translateY(-1px);
+  }
+  .md-highlight { color: var(--blue-mid); }
+
+  .extract-arrow {
+    position: absolute;
+    right: -44px; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    color: var(--text-muted); font-size: 11px; font-weight: 500;
+    letter-spacing: 0.05em; text-transform: uppercase;
+  }
+  .extract-arrow svg { color: var(--blue-mid); }
+
+  .tasks-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    overflow: hidden;
+  }
+  .tasks-card-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--gray-100);
+    font-size: 11px; font-weight: 500; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-muted);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .tasks-card-header span {
+    background: var(--blue-faint); color: var(--blue-dark);
+    font-size: 11px; padding: 2px 8px; border-radius: 100px;
+  }
+  .task-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 18px;
+    border-bottom: 1px solid var(--gray-50);
+    font-size: 13px; color: var(--text-soft);
+  }
+  .task-row:last-child { border-bottom: none; }
+  .task-cb {
+    width: 16px; height: 16px; border-radius: 4px;
+    border: 1.5px solid var(--gray-200); flex-shrink: 0;
+  }
+  .tag-pill {
+    margin-left: auto; flex-shrink: 0;
+    font-size: 11px; font-weight: 500; letter-spacing: 0.03em;
+    padding: 2px 8px; border-radius: 100px;
+  }
+  .tag-blue { background: var(--blue-faint); color: var(--blue-mid); }
+  .tag-green { background: #E4F5EC; color: #1A7A4A; }
+
+  /* ── CTA ───────────────────────────────────── */
+  .cta-wrap { padding: 0 48px 80px; }
+  .cta-section {
+    background: linear-gradient(140deg, var(--blue-dark) 0%, var(--blue-deeper) 100%);
+    border-radius: 22px; padding: 80px 60px;
+    text-align: center; position: relative; overflow: hidden;
+  }
+  .cta-section::before {
+    content: '';
+    position: absolute; width: 600px; height: 600px;
+    top: -200px; left: 50%; transform: translateX(-50%);
+    background: radial-gradient(circle, rgba(123,175,212,0.18) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .cta-section h2 {
+    font-family: var(--serif);
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 500; line-height: 1.18;
+    color: white; letter-spacing: -1.2px;
+    margin-bottom: 16px; position: relative;
+  }
+  .cta-section h2 em { font-style: italic; color: var(--blue-light); }
+  .cta-section > p {
+    font-size: 16px; color: rgba(255,255,255,0.55);
+    margin-bottom: 40px; position: relative;
+  }
+  .btn-white {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: white; color: var(--blue-dark);
+    font-family: var(--sans); font-size: 14px; font-weight: 500;
+    padding: 12px 26px; border-radius: 9px;
+    text-decoration: none; border: none; cursor: pointer;
+    transition: opacity 0.15s, transform 0.15s;
+    position: relative;
+  }
+  .btn-white:hover { opacity: 0.90; transform: translateY(-1px); }
+  .cta-meta {
+    margin-top: 20px; position: relative;
+    display: flex; align-items: center; justify-content: center; gap: 20px;
+    flex-wrap: wrap;
+  }
+  .cta-meta-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: rgba(255,255,255,0.35);
+  }
+  .cta-meta-item svg { opacity: 0.5; }
+
+  /* ── FOOTER ────────────────────────────────── */
+  footer {
+    padding: 32px 48px;
+    border-top: 1px solid var(--gray-100);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 16px;
+  }
+  .footer-brand {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--serif); font-size: 15px; font-weight: 600;
+    color: var(--blue-dark); text-decoration: none;
+  }
+  .footer-brand-icon { width: 22px; height: 22px; border-radius: 5px; overflow: hidden; }
+  .footer-links {
+    display: flex; gap: 22px; flex-wrap: wrap; list-style: none;
+  }
+  .footer-links a {
+    font-size: 13px; color: var(--text-muted);
+    text-decoration: none; transition: color 0.15s;
+  }
+  .footer-links a:hover { color: var(--blue-dark); }
+  .footer-copy { font-size: 13px; color: var(--text-muted); }
+
+  /* ── ANIMATIONS ────────────────────────────── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hero-pill       { animation: fadeUp 0.55s 0.00s ease both; }
+  .hero h1         { animation: fadeUp 0.55s 0.08s ease both; }
+  .hero-sub        { animation: fadeUp 0.55s 0.16s ease both; }
+  .hero-local-note { animation: fadeUp 0.55s 0.22s ease both; }
+  .hero-actions    { animation: fadeUp 0.55s 0.28s ease both; }
+  .screenshot-wrap { animation: fadeUp 0.70s 0.36s ease both; }
+
+  /* ── DOWNLOAD DROPDOWNS ─────────────────────── */
+  .btn-ghost {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.12); color: white;
+    font-family: var(--sans); font-size: 14px; font-weight: 500;
+    padding: 12px 22px; border-radius: 9px;
+    text-decoration: none; border: 1px solid rgba(255,255,255,0.2);
+    cursor: pointer; transition: background 0.15s;
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.18); }
+  .dl-wrap { position: relative; display: inline-block; }
+  .dl-dropdown {
+    display: none; position: absolute; top: calc(100% + 6px); left: 50%;
+    transform: translateX(-50%);
+    background: white; border-radius: 8px; min-width: 190px;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.16); overflow: hidden;
+    z-index: 100;
+  }
+  .dl-dropdown a {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 11px 16px; font-size: 13px; font-weight: 500;
+    color: var(--blue-dark); text-decoration: none;
+    transition: background 0.12s;
+    border-bottom: 1px solid #f0f2f5;
+  }
+  .dl-dropdown a:last-child { border-bottom: none; }
+  .dl-dropdown a:hover { background: #f0f4fb; }
+  .dl-dropdown a span { font-size: 11px; color: #9CA3AF; font-weight: 400; }
+</style>
+</head>
+<body>
+
+
+<!-- ── NAV ── -->
+<nav>
+  <a href="#" class="nav-brand">
+    <div class="nav-brand-icon">
+      <img src="logo.svg" alt="Gera logo" width="36" height="36" style="display:block" />
+    </div>
+    <span class="nav-brand-name">Gera</span>
+  </a>
+  <div class="nav-right">
+    <span class="nav-badge">Pre-alpha</span>
+    <span class="nav-link" style="opacity:0.45; cursor:default">🚧 Docs</span>
+    <a href="https://github.com/petereon/gera" class="nav-link" target="_blank" rel="noopener">GitHub</a>
+    <a href="#download" class="nav-link nav-cta">Download</a>
+  </div>
+</nav>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="hero-bg-orb hero-bg-orb-1"></div>
+  <div class="hero-bg-orb hero-bg-orb-2"></div>
+
+  <div class="hero-pill">Early access · macOS · Windows · Linux</div>
+
+  <h1>Your schedule, tasks,<br>and notes — <em>finally unified</em></h1>
+
+  <p class="hero-sub">Gera links your calendar events directly to the tasks and notes they generate. Everything in one place, stored as plain files you always own.</p>
+
+  <div class="hero-local-note">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+    </svg>
+    Runs entirely on your device. No cloud, no subscription, no lock-in.
+  </div>
+
+  <div class="hero-actions">
+    <a href="#download" class="btn-primary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><path d="M12 3v13M8 13l4 4 4-4"/><path d="M4 20h16"/></svg>
+      Download
+    </a>
+    <a href="https://github.com/petereon/gera" class="btn-outline" target="_blank" rel="noopener">
+      View on GitHub
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>
+    </a>
+  </div>
+
+  <div class="screenshot-wrap">
+    <div class="screenshot-frame">
+      <img src="screenshot.png" alt="Gera app — tasks view" />
+    </div>
+    <div class="float-badge badge-left">
+      <span class="badge-dot dot-green"></span>
+      <strong>Stored as Markdown</strong><br>
+      Open in any text editor
+    </div>
+    <div class="float-badge badge-right">
+      <span class="badge-dot dot-blue"></span>
+      <strong>3 tasks extracted</strong> from<br>
+      Weekly Standup Notes.md
+    </div>
+  </div>
+</section>
+
+<!-- ── THREE PILLARS ── -->
+<section class="pillars">
+  <div class="pillars-inner">
+    <div class="pillars-header">
+      <p class="section-eyebrow">Core concepts</p>
+      <h2 class="section-h">Three types of information.<br><em>One coherent workspace.</em></h2>
+    </div>
+    <div class="pillars-grid">
+
+      <div class="pillar">
+        <div class="pillar-number">01</div>
+        <div class="pillar-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3D7FBF" stroke-width="1.8" stroke-linecap="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"/>
+            <path d="M16 2v4M8 2v4M3 10h18"/>
+          </svg>
+        </div>
+        <h3>Events</h3>
+        <p>Meetings, appointments, and any occurrence tied to a specific time. Events are the anchor — everything else orbits around them.</p>
+        <div class="pillar-tag">time-bound</div>
+      </div>
+
+      <div class="pillar">
+        <div class="pillar-number">02</div>
+        <div class="pillar-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3D7FBF" stroke-width="1.8" stroke-linecap="round">
+            <path d="M9 11l3 3L22 4"/>
+            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+          </svg>
+        </div>
+        <h3>Tasks</h3>
+        <p>Actions you need to complete. Each task knows which event created it and which note provides its context — no more free-floating to-dos.</p>
+        <div class="pillar-tag">action-oriented</div>
+      </div>
+
+      <div class="pillar">
+        <div class="pillar-number">03</div>
+        <div class="pillar-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3D7FBF" stroke-width="1.8" stroke-linecap="round">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+            <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+          </svg>
+        </div>
+        <h3>Notes</h3>
+        <p>Your knowledge, ideas, and reference material. Notes supply the background context for events and tasks — and Gera can extract tasks from them automatically.</p>
+        <div class="pillar-tag">context &amp; knowledge</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── LOCAL FIRST ── -->
+<section style="padding: 100px 48px;">
+  <div class="local" style="padding: 0; max-width: 1040px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center;">
+    <div class="local-text">
+      <p class="section-eyebrow">Local-first architecture</p>
+      <h2 class="section-h" style="max-width: 380px; margin-bottom: 24px;">Your data, in<br><em>plain text, forever.</em></h2>
+      <p style="font-size:15px; line-height:1.75; color:var(--text-soft); margin-bottom: 32px;">
+        Gera stores everything as standard <code style="font-family:var(--mono); font-size:13px; background:var(--gray-50); padding: 2px 6px; border-radius:4px; border: 1px solid var(--gray-100);">.md</code> and YAML files on your drive. Open them in Vim, VS Code, or Obsidian whenever you want. Nothing is ever sent to a server.
+      </p>
+      <div class="local-points">
+        <div class="local-point">
+          <div class="local-point-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3D7FBF" stroke-width="2" stroke-linecap="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div class="local-point-text">
+            <h4>Privacy by default</h4>
+            <p>Files stay on your drive. Sync only if you choose to, using your own tools.</p>
+          </div>
+        </div>
+        <div class="local-point">
+          <div class="local-point-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3D7FBF" stroke-width="2" stroke-linecap="round">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+              <path d="M14 2v6h6"/>
+            </svg>
+          </div>
+          <div class="local-point-text">
+            <h4>Standard formats</h4>
+            <p>Markdown and YAML. Readable by any editor, versionable with Git.</p>
+          </div>
+        </div>
+        <div class="local-point">
+          <div class="local-point-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3D7FBF" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M8 12l3 3 5-5"/>
+            </svg>
+          </div>
+          <div class="local-point-text">
+            <h4>No lock-in</h4>
+            <p>Stop using Gera any day and your data is still perfectly intact and portable.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="file-preview">
+      <div class="file-preview-bar">
+        <div class="file-preview-dots">
+          <div class="fdot fdot-r"></div>
+          <div class="fdot fdot-y"></div>
+          <div class="fdot fdot-g"></div>
+        </div>
+        <span class="file-preview-name">weekly-standup-2026-03-13.md</span>
+      </div>
+      <div class="file-preview-body">
+        <div class="fc-gray">---</div>
+        <div><span class="fc-blue">event_ids</span><span class="fc-white">:</span></div>
+        <div><span class="fc-gray">&nbsp;&nbsp;- </span><span class="fc-green">weekly-standup</span></div>
+        <div class="fc-gray">---</div>
+        <br/>
+        <div><span class="fc-white" style="color:rgba(255,255,255,0.85); font-weight:500">## Notes</span></div>
+        <br/>
+        <div class="fc-white">Blocked on API rate limits.</div>
+        <div class="fc-white">Martin finishing data export PR.</div>
+        <br/>
+        <div><span class="fc-white" style="color:rgba(255,255,255,0.85); font-weight:500">## Tasks</span></div>
+        <br/>
+        <div><span class="fc-pink">* [ ]</span><span class="fc-white"> Write unit tests for dashboard</span></div>
+        <div><span class="fc-pink">* [ ]</span><span class="fc-white"> Pair with Martin on data export</span></div>
+        <div><span class="fc-pink">* [x]</span><span class="fc-white" style="opacity:0.45"> Send agenda for standup</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── MARKDOWN EXTRACTION ── -->
+<section style="background: var(--gray-50); border-top: 1px solid var(--gray-100); border-bottom: 1px solid var(--gray-100);">
+  <div class="extract">
+    <div>
+      <p class="section-eyebrow">Markdown extraction</p>
+      <h2 class="section-h" style="margin-bottom: 20px;"><em>Parse tasks</em><br>from any note.</h2>
+      <p style="font-size:15px; line-height:1.75; color:var(--text-soft); margin-bottom: 24px;">
+        Already writing notes in Markdown? Point Gera at any <code style="font-family:var(--mono); font-size:13px; background:white; padding: 2px 6px; border-radius:4px; border: 1px solid var(--gray-100);">* [ ]</code> list and it will pull those tasks into your workspace automatically — linked back to the original note for full context.
+      </p>
+      <p style="font-size:14px; color:var(--text-muted); line-height:1.7;">Works with your existing Obsidian vault, Bear exports, Notion exports, or any plain Markdown file.</p>
+    </div>
+
+    <div class="extract-visual">
+      <div class="md-card" style="margin-bottom: 16px;">
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); margin-bottom:12px; font-weight:500;">design-review-prep.md</div>
+        <div style="font-family:var(--mono); font-size:12px; color:var(--text-muted); margin-bottom:10px; line-height:1.7;">
+          <div>---</div>
+          <div><span style="color:var(--blue-mid);">event_ids</span>:</div>
+          <div>&nbsp;&nbsp;- design-review</div>
+          <div>---</div>
+        </div>
+        <div class="md-h" style="margin-bottom: 8px;">## Design Review Prep</div>
+        <div style="color:var(--text-muted); font-size:12px; margin-bottom:12px;">Peter presents motion system. Anna shares accessibility audit.</div>
+        <div class="md-h" style="margin-bottom:8px;">## Tasks</div>
+        <div style="font-family:var(--mono); font-size:12px; line-height:1.9;">
+          <div><span style="color:var(--blue-mid);">* [ ]</span> <span class="md-highlight">Peter presents motion design system</span></div>
+          <div><span style="color:var(--blue-mid);">* [ ]</span> <span class="md-highlight">Anna shares accessibility audit</span></div>
+          <div><span style="color:var(--text-muted);">* [x]</span> <span style="color:var(--text-muted); text-decoration:line-through;">Book meeting room</span></div>
+        </div>
+      </div>
+
+      <div style="text-align:center; margin: 12px 0; color: var(--blue-mid); font-size: 12px; font-weight:500; letter-spacing: 0.04em; text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+        Extracted automatically
+      </div>
+
+      <div class="tasks-card">
+        <div class="tasks-card-header">
+          Design Review Preparation
+          <span>2 new</span>
+        </div>
+        <div class="task-row">
+          <div class="task-cb"></div>
+          Peter presents motion design system
+        </div>
+        <div class="task-row">
+          <div class="task-cb"></div>
+          Anna shares accessibility audit
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── COMPARISONS ── -->
+<section class="compare">
+  <div class="compare-inner">
+    <div class="compare-header">
+      <p class="section-eyebrow">How Gera fits in</p>
+      <h2 class="section-h">It's not a calendar.<br>Not a note app. <em>Not just a task list.</em></h2>
+    </div>
+    <div class="compare-grid">
+
+      <div class="compare-card">
+        <div class="compare-vs">vs. Google Calendar</div>
+        <h3>Calendars organize time but isolate your work</h3>
+        <div class="compare-row them">
+          <span class="compare-label label-them">They</span>
+          Events exist alone — notes and tasks live elsewhere, disconnected.
+        </div>
+        <hr class="compare-divider"/>
+        <div class="compare-row us">
+          <span class="compare-label label-us">Gera</span>
+          Every event is a hub. Tasks and notes attach directly to it.
+        </div>
+      </div>
+
+      <div class="compare-card">
+        <div class="compare-vs">vs. Obsidian / Notion</div>
+        <h3>Note apps treat events and tasks as plain text</h3>
+        <div class="compare-row them">
+          <span class="compare-label label-them">They</span>
+          A meeting is just a heading. A task is just a bullet point.
+        </div>
+        <hr class="compare-divider"/>
+        <div class="compare-row us">
+          <span class="compare-label label-us">Gera</span>
+          Time and action are first-class data types with dedicated interfaces.
+        </div>
+      </div>
+
+      <div class="compare-card">
+        <div class="compare-vs">vs. Todoist / Things</div>
+        <h3>Task managers list what to do without the why</h3>
+        <div class="compare-row them">
+          <span class="compare-label label-them">They</span>
+          Tasks float freely — the meeting that created them is long forgotten.
+        </div>
+        <hr class="compare-divider"/>
+        <div class="compare-row us">
+          <span class="compare-label label-us">Gera</span>
+          Each task sits beside the event and notes that define it.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<div class="cta-wrap" id="download">
+  <div class="cta-section">
+    <h2>One place for everything<br>that <em>matters at work.</em></h2>
+    <p>Free and open source. Your files, your rules.</p>
+    <div style="display:flex; flex-wrap:wrap; gap:12px; justify-content:center; position:relative; margin-bottom: 28px;">
+      <!-- macOS — single universal DMG -->
+      <a href="https://github.com/petereon/gera/releases/latest/download/gera.dmg" class="btn-white">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1A4D82" stroke-width="2" stroke-linecap="round"><path d="M12 3v13M8 13l4 4 4-4"/><path d="M4 20h16"/></svg>
+        macOS <span style="font-weight:400; opacity:0.6; font-size:12px; margin-left:2px;">Apple Silicon</span>
+      </a>
+      <!-- Windows — direct EXE installer -->
+      <a href="https://github.com/petereon/gera/releases/latest/download/gera_0.1.0_x64-setup.exe" class="btn-ghost">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v13M8 13l4 4 4-4"/><path d="M4 20h16"/></svg>
+        Windows <span style="font-weight:400; opacity:0.5; font-size:12px; margin-left:2px;">x64</span>
+      </a>
+      <!-- Linux Debian/Ubuntu — architecture dropdown -->
+      <div class="dl-wrap">
+        <button class="btn-ghost" onclick="toggleDl(this)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v13M8 13l4 4 4-4"/><path d="M4 20h16"/></svg>
+          Linux <span style="font-weight:400; opacity:0.5; font-size:12px; margin-left:2px;">Debian / Ubuntu (.deb)</span>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="dl-dropdown">
+          <a href="https://github.com/petereon/gera/releases/latest/download/gera_0.1.0_amd64.deb">
+            x86_64 <span>amd64</span>
+          </a>
+          <a href="https://github.com/petereon/gera/releases/latest/download/gera_0.1.0_arm64.deb">
+            ARM64 <span>arm64</span>
+          </a>
+        </div>
+      </div>
+      <!-- Linux Fedora/RHEL — architecture dropdown -->
+      <div class="dl-wrap">
+        <button class="btn-ghost" onclick="toggleDl(this)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v13M8 13l4 4 4-4"/><path d="M4 20h16"/></svg>
+          Linux <span style="font-weight:400; opacity:0.5; font-size:12px; margin-left:2px;">Fedora / RHEL (.rpm)</span>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="dl-dropdown">
+          <a href="https://github.com/petereon/gera/releases/latest/download/gera-0.1.0-1.x86_64.rpm">
+            x86_64 <span>x86_64</span>
+          </a>
+          <a href="https://github.com/petereon/gera/releases/latest/download/gera-0.1.0-1.aarch64.rpm">
+            ARM64 <span>aarch64</span>
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="cta-meta">
+      <div class="cta-meta-item">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        No account required
+      </div>
+      <div class="cta-meta-item">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77A5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg>
+        Open source on GitHub
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <a href="#" class="footer-brand">
+    <div class="footer-brand-icon">
+      <img src="logo.svg" alt="Gera logo" width="22" height="22" style="display:block" />
+    </div>
+    Gera
+  </a>
+  <ul class="footer-links">
+    <li><a href="https://github.com/petereon/gera">GitHub</a></li>
+    <li><a href="https://github.com/petereon/gera/issues">Issues</a></li>
+  </ul>
+  <span class="footer-copy">Pre-alpha · Use with care</span>
+</footer>
+
+<script>
+function toggleDl(btn) {
+  const menu = btn.nextElementSibling;
+  const isOpen = menu.style.display === 'block';
+  document.querySelectorAll('.dl-dropdown').forEach(d => d.style.display = 'none');
+  if (!isOpen) menu.style.display = 'block';
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.dl-wrap')) {
+    document.querySelectorAll('.dl-dropdown').forEach(d => d.style.display = 'none');
+  }
+});
+</script>
+</body>
+</html>
