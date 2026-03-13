@@ -47,6 +47,7 @@ Major milestones planned for the project:
 - [x] Packaging Gera for humans (brew, choco, installers) - __0.0.1__
 - [x] Dark mode - __0.0.3__
 - [x] Keybindings (customizable) - - __0.0.4__
+- [ ] Plain-text note editor
 - [ ] Syncing calendar event changes back to the source calendar
 - [ ] Scriptability or plugin system
 - [ ] Sync for Outlook calendar
