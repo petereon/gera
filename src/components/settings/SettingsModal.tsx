@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import ThemeToggle from '../shared/ThemeToggle';
 import { KeybindingsSettings } from './KeybindingsSettings';
+import { useTour, resetTour } from '../../hooks/useTour';
 import {
   authenticateGoogle,
   listGoogleAccounts,
@@ -23,6 +24,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(panelRef);
   const [tab, setTab] = useState<Tab>('general');
+  const { startTour } = useTour();
   const [accounts, setAccounts] = useState<TokenData[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState<string | null>(null);
@@ -146,12 +148,26 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         {tab === 'general' && (
           <div className="modal-content">
             <p className="section-label">Appearance</p>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 24 }}>
               <div>
                 <p style={{ margin: 0, fontWeight: 600 }}>Theme</p>
                 <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 13 }}>Light / Dark</p>
               </div>
               <ThemeToggle />
+            </div>
+
+            <p className="section-label">Onboarding</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <p style={{ margin: 0, fontWeight: 600 }}>App tour</p>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 13 }}>Replay the guided walkthrough</p>
+              </div>
+              <button
+                className="modal-btn modal-btn--cancel"
+                onClick={() => { resetTour(); onClose(); startTour(); }}
+              >
+                Restart tour
+              </button>
             </div>
           </div>
         )}

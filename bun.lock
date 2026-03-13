@@ -8,6 +8,7 @@
         "@mdxeditor/editor": "^3.52.4",
         "@tauri-apps/api": "^2",
         "@tauri-apps/plugin-opener": "^2",
+        "driver.js": "^1.4.0",
         "mdast-util-find-and-replace": "^3.0.2",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
@@ -549,6 +550,8 @@
     "dotenv": ["dotenv@16.6.1", "", {}, "sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow=="],
 
     "downshift": ["downshift@7.6.2", "", { "dependencies": { "@babel/runtime": "^7.14.8", "compute-scroll-into-view": "^2.0.4", "prop-types": "^15.7.2", "react-is": "^17.0.2", "tslib": "^2.3.0" }, "peerDependencies": { "react": ">=16.12.0" } }, "sha512-iOv+E1Hyt3JDdL9yYcOgW7nZ7GQ2Uz6YbggwXvKUSleetYhU2nXD482Rz6CzvM4lvI1At34BYruKAL4swRGxaA=="],
+
+    "driver.js": ["driver.js@1.4.0", "", {}, "sha512-Gm64jm6PmcU+si21sQhBrTAM1JvUrR0QhNmjkprNLxohOBzul9+pNHXgQaT9lW84gwg9GMLB3NZGuGolsz5uew=="],
 
     "electron-to-chromium": ["electron-to-chromium@1.5.286", "", {}, "sha512-9tfDXhJ4RKFNerfjdCcZfufu49vg620741MNs26a9+bhLThdB+plgMeou98CAaHu/WATj2iHOOHTp1hWtABj2A=="],
 

@@ -2,11 +2,13 @@ import "./styles/variables.css";
 import "./styles/layout.css";
 import "./styles/components.css";
 import "./styles/views.css";
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAppStore } from "./stores/useAppStore";
 import { useGeraSync } from "./hooks/useGeraSync";
 import { useWindowWidth } from "./hooks/useWindowWidth";
 import { useKeyboard } from "./hooks/useKeyboard";
+import { useTour, isTourDone } from "./hooks/useTour";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Inspector } from "./components/layout/Inspector";
 import { TasksView } from "./components/tasks/TasksView";
@@ -31,6 +33,16 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   useGeraSync();
   // Register global keyboard shortcuts
   useKeyboard();
+
+  const { startTour } = useTour();
+
+  // Fire tour once after the workspace finishes loading
+  useEffect(() => {
+    if (!loading && !isTourDone()) {
+      const id = setTimeout(startTour, 600);
+      return () => clearTimeout(id);
+    }
+  }, [loading]);
 
   if (loading) {
     return (
