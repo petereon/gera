@@ -115,9 +115,10 @@ describe("calculateEventStyle", () => {
     expect(calculateEventStyle(ev).top).toBe("50%");
   });
 
-  it("does not throw for invalid date strings (returns NaN-based strings)", () => {
+  it("returns safe fallback for invalid date strings", () => {
     const ev = makeEvent("bad", "date");
-    // new Date("bad") is Invalid Date — no exception is thrown but NaN propagates
-    expect(() => calculateEventStyle(ev)).not.toThrow();
+    const style = calculateEventStyle(ev);
+    expect(style.height).toBe("0px");
+    expect(style.top).toBe("0%");
   });
 });

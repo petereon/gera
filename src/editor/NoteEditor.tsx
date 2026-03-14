@@ -43,6 +43,21 @@ import { geraRefsPlugin } from './geraRefsPlugin';
 import { useAppStore } from '../stores/useAppStore';
 import './NoteEditor.css';
 
+/**
+ * Mirror the Python backend's `_sanitize_content`:
+ *   1. Replace all &#x20; HTML entities with a plain space.
+ *   2. Strip trailing horizontal whitespace from every line.
+ *
+ * Keeping frontend and backend in sync prevents the external-reload guard
+ * (`body === lastSavedBodyRef.current`) from failing on every autosave,
+ * which would cause `setMarkdown` to be called and reset the cursor.
+ */
+function sanitizeContent(content: string): string {
+  return content
+    .replace(/&#x20;/g, ' ')
+    .replace(/[ \t]+$/gm, '');
+}
+
 export interface NoteEditorProps {
   filename: string;
   content: string;
@@ -95,7 +110,7 @@ export function NoteEditor({
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const onMouseDown = (e: MouseEvent) => {
+      const onMouseDown = (e: MouseEvent) => {
       const target = e.target as Element;
       const isCheckbox =
         target.closest('li[role="checkbox"]') != null ||
@@ -104,7 +119,9 @@ export function NoteEditor({
       const scroll = el.querySelector<HTMLElement>('.mdxeditor-root-contenteditable');
       if (!scroll) return;
       const savedTop = scroll.scrollTop;
-      requestAnimationFrame(() => { scroll.scrollTop = savedTop; });
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => { scroll.scrollTop = savedTop; });
+      });
     };
     el.addEventListener('mousedown', onMouseDown);
     return () => el.removeEventListener('mousedown', onMouseDown);
@@ -157,12 +174,10 @@ export function NoteEditor({
       // Schedule new save
       saveTimeoutRef.current = setTimeout(async () => {
         try {
-          // Clean up HTML entities that MDXEditor adds to checkboxes
-          // MDXEditor adds &#x20; (space entity) after [ ] and [x] in task lists
-          const cleanedContent = newContent
-            .replace(/- \[ \] &#x20;/g, '- [ ] ')
-            .replace(/- \[x\] &#x20;/g, '- [x] ');
-          
+          // Mirror the backend's _sanitize_content so lastSavedBodyRef exactly
+          // matches what the backend writes to disk (prevents false guard failures).
+          const cleanedContent = sanitizeContent(newContent);
+
           // Reconstruct frontmatter if we have event_ids or project_ids
           let fullContent = cleanedContent;
           if (eventIds.length > 0 || projectIds.length > 0) {
@@ -215,9 +230,16 @@ export function NoteEditor({
           const current = editorRef.current?.getMarkdown() ?? '';
           if (body === current) return;
 
+          const scrollEl = document.querySelector<HTMLElement>('.mdxeditor-root-contenteditable');
+          const savedScrollTop = scrollEl?.scrollTop ?? 0;
           editorRef.current?.setMarkdown(body);
           // Update the ref so the next external change isn't falsely skipped
           lastSavedBodyRef.current = body;
+          // Restore scroll — setMarkdown replaces all Lexical nodes which resets
+          // the viewport to the top. Use a rAF so the DOM has settled first.
+          requestAnimationFrame(() => {
+            if (scrollEl) scrollEl.scrollTop = savedScrollTop;
+          });
         } catch (err) {
           console.error('Failed to reload note on external change:', err);
         }

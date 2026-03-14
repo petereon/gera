@@ -5,6 +5,7 @@ import React from "react";
 import { useKeyboard } from "./useKeyboard";
 import { useAppStore } from "../stores/useAppStore";
 import { useCalendarStore } from "../stores/useCalendarStore";
+import { setStorageAdapter } from "../types/keybindings";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -15,8 +16,14 @@ vi.mock("react-router-dom", async (importOriginal) => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
-// Use real keybindings so default shortcuts (⌘K, ⌘1, etc.) work as expected.
-// For the custom-override test we temporarily override localStorage.
+// ── In-memory storage adapter (replaces broken Tauri jsdom localStorage) ──────
+
+const memStore: Record<string, string> = {};
+setStorageAdapter({
+  getItem: (k) => memStore[k] ?? null,
+  setItem: (k, v) => { memStore[k] = v; },
+  removeItem: (k) => { delete memStore[k]; },
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -38,8 +45,8 @@ beforeEach(() => {
   useAppStore.setState(initialAppState, true);
   useCalendarStore.setState(initialCalendarState, true);
   mockNavigate.mockClear();
-  // Remove any persisted keybinding override between tests
-  try { localStorage.removeItem("keybinding-overrides"); } catch {}
+  // Clear all persisted keybinding overrides between tests
+  delete memStore["keybinding-overrides"];
 });
 
 // ── Command palette ────────────────────────────────────────────────────────────
@@ -178,14 +185,10 @@ describe("useKeyboard — input suppression", () => {
 
 // ── Custom keybinding override ────────────────────────────────────────────────
 
-// The custom-override test requires localStorage.setItem, which is not available in the
-// Tauri jsdom mock (the mock provides no-op getItem/removeItem but not setItem).
-// Skipped until the test environment exposes a writable localStorage.
-
 describe("useKeyboard — custom keybinding override", () => {
-  it.skip("uses overridden key when localStorage has a saved override", () => {
+  it("uses overridden key when storage has a saved override", () => {
     // Persist an override for goToTasks before the hook mounts
-    localStorage.setItem("keybinding-overrides", JSON.stringify({ goToTasks: "⌘9" }));
+    memStore["keybinding-overrides"] = JSON.stringify({ goToTasks: "⌘9" });
     renderKB();
     // Default ⌘1 should NOT navigate (overridden away)
     fire("1", { metaKey: true });

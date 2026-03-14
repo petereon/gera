@@ -184,10 +184,7 @@ describe("NotesView — editor view", () => {
     expect(screen.getByText("Loading...")).toBeInTheDocument();
   });
 
-  // BUG: loadError state is never rendered because the condition
-  // `isLoadingNote || noteContent === null` always evaluates to true when
-  // the load fails (noteContent stays null). Tracked in agents/bugs.md.
-  it.skip("shows error message when note content fails to load", async () => {
+  it("shows error message when note content fails to load", async () => {
     mockGetNoteContent.mockRejectedValue(new Error("Network error"));
     useAppStore.setState({ selectedNote: makeNote() });
     renderView();

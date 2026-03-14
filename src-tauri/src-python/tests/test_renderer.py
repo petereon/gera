@@ -17,7 +17,6 @@ class TestExtractTitle:
     def test_h1_stripped_of_whitespace(self):
         assert extract_title("#  Leading spaces  \n") == "Leading spaces"
 
-    @pytest.mark.skip(reason="BUG-005: fallback includes raw ## syntax — see agents/bugs.md")
     def test_h2_not_used_as_title(self):
         title = extract_title("## Section\n\nBody")
         # Falls back to first N words of body — should strip Markdown syntax
@@ -81,7 +80,6 @@ class TestRenderBody:
         assert 'class="gera-ref gera-ref--project"' in html
         assert 'data-project="atlas"' in html
 
-    @pytest.mark.skip(reason="BUG-004: renderer _BEFORE_REF_RE uses [YMWDhm] (uppercase D) but parser uses [YMWdhm] (lowercase d) — see agents/bugs.md")
     def test_before_ref_wrapped_in_span(self):
         html = render_body("Prep @before[2d]:standup")
         assert 'class="gera-ref gera-ref--before"' in html

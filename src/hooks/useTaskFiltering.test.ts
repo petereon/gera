@@ -65,6 +65,7 @@ function makeEvent(overrides: Partial<EventEntity> = {}): EventEntity {
 }
 
 beforeEach(() => {
+  mockSearchTasks.mockClear();
   mockSearchTasks.mockResolvedValue([]);
 });
 
@@ -251,20 +252,20 @@ describe("useTaskFiltering — timeline", () => {
 // All FTS tests are skipped until the effect dependency array is fixed.
 
 describe("useTaskFiltering — FTS", () => {
-  it.skip("does not call searchTasks for queries shorter than 3 chars", async () => {
+  it("does not call searchTasks for queries shorter than 3 chars", async () => {
     renderHook(() => useTaskFiltering(NO_TASKS, NO_EVENTS, "ab"));
     await new Promise((r) => setTimeout(r, 350));
     expect(mockSearchTasks).not.toHaveBeenCalled();
   });
 
-  it.skip("calls searchTasks after 300ms debounce when local results < 5", async () => {
+  it("calls searchTasks after 300ms debounce when local results < 5", async () => {
     mockSearchTasks.mockReturnValue(new Promise(() => {}));
     renderHook(() => useTaskFiltering(NO_TASKS, NO_EVENTS, "abc"));
     await new Promise((r) => setTimeout(r, 350));
     expect(mockSearchTasks).toHaveBeenCalledWith("abc");
   });
 
-  it.skip("does not call searchTasks when local results are >= 5", async () => {
+  it("does not call searchTasks when local results are >= 5", async () => {
     const tasks = Array.from({ length: 5 }, (_, i) =>
       makeTask({ text: "abc task", line_number: i + 1 })
     );
@@ -273,7 +274,7 @@ describe("useTaskFiltering — FTS", () => {
     expect(mockSearchTasks).not.toHaveBeenCalled();
   });
 
-  it.skip("merges FTS results into filteredOtherTasks", async () => {
+  it("merges FTS results into filteredOtherTasks", async () => {
     const ftsTask = makeTask({ text: "FTS-only result", source_file: "tasks.md", line_number: 99 });
     mockSearchTasks.mockResolvedValue([ftsTask]);
     const { result } = renderHook(() => useTaskFiltering(NO_TASKS, NO_EVENTS, "fts"));
@@ -284,7 +285,7 @@ describe("useTaskFiltering — FTS", () => {
     );
   });
 
-  it.skip("deduplicates FTS results that overlap with local results", async () => {
+  it("deduplicates FTS results that overlap with local results", async () => {
     const localTask = makeTask({ text: "abc task", line_number: 1 });
     mockSearchTasks.mockResolvedValue([{ ...localTask }]);
     const tasks = [localTask];

@@ -9,7 +9,7 @@
  * Mounted as a Lexical composer child via addComposerChild$ in geraRefsPlugin.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $createTextNode,
@@ -59,6 +59,14 @@ const UNITS = ['m', 'h', 'D', 'W', 'M', 'Y'] as const;
 const UNIT_LABELS: Record<string, string> = {
   m: 'min', h: 'hr', D: 'day', W: 'wk', M: 'mo', Y: 'yr',
 };
+
+/** See geraRefsPlugin.ts — same helper, duplicated to avoid a shared module. */
+function lockScrollTop(el: HTMLElement, savedTop: number, durationMs = 200): () => void {
+  const handler = () => { el.scrollTop = savedTop; };
+  el.addEventListener('scroll', handler, { passive: true });
+  const id = window.setTimeout(() => el.removeEventListener('scroll', handler), durationMs);
+  return () => { window.clearTimeout(id); el.removeEventListener('scroll', handler); };
+}
 
 /** Auto-detect which panel to show based on what is typed after `@`. */
 function detectPanel(query: string): Panel {
@@ -136,6 +144,9 @@ export function GeraRefTypeahead(): JSX.Element | null {
   contextRef.current = context;
   const popupRef = useRef<HTMLDivElement>(null);
   const lastAutoDatetimeRef = useRef<string | null>(null);
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+  const [isPositioned, setIsPositioned] = useState(false);
+  const [listMaxHeight, setListMaxHeight] = useState<number | null>(null);
 
   /* ---- derived ---- */
   const panel: Panel = forcedPanel ?? (context ? detectPanel(context.query) : 'choose');
@@ -227,6 +238,14 @@ export function GeraRefTypeahead(): JSX.Element | null {
     ) => {
       const ctx = contextRef.current;
       if (!ctx) return;
+
+      // Lock scroll position for the duration of the update (BUG-007).
+      // Lexical can trigger multiple reconciliation cycles (the initial update
+      // plus a follow-up from the selection-watcher), each of which calls
+      // setBaseAndExtent and may scroll the editor to the cursor's new position.
+      // Intercepting the 'scroll' event is more reliable than a single rAF.
+      const scrollEl = document.querySelector<HTMLElement>('.mdxeditor-root-contenteditable');
+      if (scrollEl) lockScrollTop(scrollEl, scrollEl.scrollTop);
 
       editor.update(() => {
         const node = $getNodeByKey(ctx.textNodeKey);
@@ -380,24 +399,99 @@ export function GeraRefTypeahead(): JSX.Element | null {
   useEffect(() => {
     if (!context) return;
     const handler = (e: MouseEvent) => {
-      if (popupRef.current && !popupRef.current.contains(e.target as Node)) dismiss();
+      const target = e.target as Node;
+      // Also exclude the DateTimePicker portal which renders in document.body
+      // outside the typeahead's DOM subtree (BUG-006).
+      if (
+        popupRef.current && !popupRef.current.contains(target) &&
+        !(target as Element).closest?.('.dtp-popover')
+      ) dismiss();
     };
     document.addEventListener('mousedown', handler, true);
     return () => document.removeEventListener('mousedown', handler, true);
   }, [context, dismiss]);
+
+  /* ---- position & measurement ---- */
+  useLayoutEffect(() => {
+    if (!context || !popupRef.current) {
+      setIsPositioned(false);
+      setPosition(null);
+      setListMaxHeight(null);
+      return;
+    }
+
+    const el = popupRef.current;
+    const margin = 8;
+
+    const compute = () => {
+      const rect = el.getBoundingClientRect();
+      const viewportW = window.innerWidth;
+      const viewportH = window.innerHeight;
+      const popupW = rect.width || 280;
+      const popupH = rect.height || 200;
+
+      let left = Math.min(context.x, viewportW - popupW - margin);
+      left = Math.max(margin, left);
+
+      const belowSpace = viewportH - context.y;
+      let top: number;
+      if (popupH + margin <= belowSpace) {
+        top = context.y;
+      } else {
+        // prefer above if it fits
+        if (context.y >= popupH + margin) {
+          top = context.y - popupH - 6;
+        } else {
+          // clamp inside viewport
+          top = Math.max(margin, Math.min(context.y, viewportH - popupH - margin));
+        }
+      }
+
+      // compute a reasonable max-height for the event list
+      let listMax: number | null = null;
+      if (panel === 'event-ref') {
+        const available = top >= context.y ? (viewportH - context.y - margin) : (context.y - margin);
+        const listEl = el.querySelector('.gera-typeahead__list') as HTMLElement | null;
+        const otherHeight = listEl ? Math.max(0, rect.height - listEl.getBoundingClientRect().height) : 80;
+        const computed = Math.max(80, available - otherHeight - 8);
+        listMax = Math.max(80, Math.min(computed, 600));
+      }
+
+      setPosition({ top, left });
+      setListMaxHeight(listMax);
+      setIsPositioned(true);
+    };
+
+    compute();
+
+    const onResize = () => {
+      setIsPositioned(false);
+      compute();
+    };
+
+    window.addEventListener('resize', onResize);
+    window.addEventListener('scroll', onResize, true);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('scroll', onResize, true);
+    };
+  }, [context, panel, filteredEvents.length, absoluteValue, relation, amount, unit, eventFilter]);
 
   /* ---- render ---- */
 
   if (!context) return null;
 
   const popupWidth = 280;
-  const left = Math.min(context.x, window.innerWidth - popupWidth - 16);
+  const fallbackLeft = Math.min(context.x, window.innerWidth - popupWidth - 16);
+  const styleTop = isPositioned && position ? position.top : context.y;
+  const styleLeft = isPositioned && position ? position.left : fallbackLeft;
+  const visibility = isPositioned ? 'visible' : 'hidden';
 
   return (
     <div
       ref={popupRef}
       className="gera-typeahead"
-      style={{ position: 'fixed', top: context.y, left, zIndex: 2000 }}
+      style={{ position: 'fixed', top: styleTop, left: styleLeft, zIndex: 2000, visibility }}
       onMouseDown={(e) => {
         // Keep editor focus, but allow native interaction with inputs/selects
         const t = e.target as HTMLElement;
@@ -498,8 +592,12 @@ export function GeraRefTypeahead(): JSX.Element | null {
           <div className="gera-typeahead__hint">Select an event</div>
           {filteredEvents.length === 0 ? (
             <div className="gera-typeahead__empty">No matching events</div>
-          ) : (
-            <ul className="gera-typeahead__list" role="listbox">
+            ) : (
+            <ul
+              className="gera-typeahead__list"
+              role="listbox"
+              style={listMaxHeight ? { maxHeight: `${listMaxHeight}px` } : undefined}
+            >
               {filteredEvents.map((ev, i) => (
                 <li
                   key={ev.id}

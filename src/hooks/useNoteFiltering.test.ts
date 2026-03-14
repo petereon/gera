@@ -32,6 +32,7 @@ function makeNote(overrides: Partial<NoteEntity> = {}): NoteEntity {
 }
 
 beforeEach(() => {
+  mockSearchNotes.mockClear();
   mockSearchNotes.mockResolvedValue([]);
 });
 
@@ -104,14 +105,14 @@ describe("useNoteFiltering — isSearching", () => {
 // All FTS tests are skipped until the effect dependency array is fixed.
 
 describe("useNoteFiltering — FTS", () => {
-  it.skip("does not call searchNotes for queries shorter than 3 chars", async () => {
+  it("does not call searchNotes for queries shorter than 3 chars", async () => {
     const notes: NoteEntity[] = [];
     renderHook(() => useNoteFiltering(notes, "ab"));
     await new Promise((r) => setTimeout(r, 350));
     expect(mockSearchNotes).not.toHaveBeenCalled();
   });
 
-  it.skip("calls searchNotes after debounce when local results < 5", async () => {
+  it("calls searchNotes after debounce when local results < 5", async () => {
     mockSearchNotes.mockReturnValue(new Promise(() => {}));
     const notes: NoteEntity[] = [];
     renderHook(() => useNoteFiltering(notes, "abc"));
@@ -120,7 +121,7 @@ describe("useNoteFiltering — FTS", () => {
     });
   });
 
-  it.skip("does not call searchNotes when local results are >= 5", async () => {
+  it("does not call searchNotes when local results are >= 5", async () => {
     const notes = Array.from({ length: 5 }, (_, i) =>
       makeNote({ filename: `note-${i}.md`, title: `abc note ${i}` })
     );
@@ -129,7 +130,7 @@ describe("useNoteFiltering — FTS", () => {
     expect(mockSearchNotes).not.toHaveBeenCalled();
   });
 
-  it.skip("merges FTS results into filteredNotes", async () => {
+  it("merges FTS results into filteredNotes", async () => {
     const ftsNote = makeNote({ filename: "fts.md", title: "FTS Result" });
     mockSearchNotes.mockResolvedValue([ftsNote]);
     const notes: NoteEntity[] = [];
@@ -140,7 +141,7 @@ describe("useNoteFiltering — FTS", () => {
     );
   });
 
-  it.skip("deduplicates FTS results that overlap with local results", async () => {
+  it("deduplicates FTS results that overlap with local results", async () => {
     const localNote = makeNote({ filename: "abc.md", title: "abc note" });
     mockSearchNotes.mockResolvedValue([{ ...localNote }]);
     const notes = [localNote];

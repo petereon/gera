@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -64,6 +64,10 @@ export function TaskItem({ task }: TaskItemProps) {
   const pickerSearchRef = useRef<HTMLInputElement>(null);
   useFocusTrap(editPanelRef);
 
+  const [pickerMeasured, setPickerMeasured] = useState(false);
+  const [pickerTop, setPickerTop] = useState<number | undefined>(undefined);
+  const [pickerListMaxHeight, setPickerListMaxHeight] = useState<number | undefined>(undefined);
+
   // Focus and scroll into view when selected from command palette
   useEffect(() => {
     if (!pendingFocusTask) return;
@@ -84,8 +88,64 @@ export function TaskItem({ task }: TaskItemProps) {
 
   // Focus search input when event picker opens
   useEffect(() => {
-    if (showEventPicker) pickerSearchRef.current?.focus();
-  }, [showEventPicker]);
+    if (showEventPicker && pickerMeasured) pickerSearchRef.current?.focus();
+  }, [showEventPicker, pickerMeasured]);
+
+  // Measure popup and clamp to viewport (compute placement and max-height)
+  useLayoutEffect(() => {
+    if (!showEventPicker || !pickerRef.current) {
+      setPickerMeasured(false);
+      setPickerTop(undefined);
+      setPickerListMaxHeight(undefined);
+      return;
+    }
+
+    const wrapper = pickerRef.current;
+    const popup = wrapper.querySelector<HTMLElement>('.metadata-event-picker');
+    if (!popup) return;
+
+    const searchInput = popup.querySelector<HTMLInputElement>('.metadata-picker-search');
+    const listEl = popup.querySelector<HTMLElement>('.metadata-picker-list');
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const viewportHeight = document.documentElement.clientHeight;
+    const margin = 12;
+
+    const headerHeight = searchInput ? searchInput.getBoundingClientRect().height : 40;
+    const desiredListHeight = listEl ? Math.min(listEl.scrollHeight, 600) : 180;
+
+    const spaceBelow = Math.max(0, viewportHeight - wrapperRect.bottom - margin);
+    const spaceAbove = Math.max(0, wrapperRect.top - margin);
+
+    const minListHeight = 60;
+
+    // Prefer opening below. If not enough room below, open above if possible.
+    const availableBelowForList = Math.max(0, spaceBelow - headerHeight - 8);
+    const availableAboveForList = Math.max(0, spaceAbove - headerHeight - 8);
+
+    let topPx: number;
+    let maxListHeight: number;
+
+    if (availableBelowForList >= minListHeight) {
+      // Place below and clamp to available space
+      topPx = wrapperRect.height + 6;
+      maxListHeight = Math.min(desiredListHeight, availableBelowForList);
+      maxListHeight = Math.max(minListHeight, maxListHeight);
+    } else if (availableAboveForList >= minListHeight) {
+      // Not enough below, place above and clamp
+      maxListHeight = Math.min(desiredListHeight, availableAboveForList);
+      maxListHeight = Math.max(minListHeight, maxListHeight);
+      topPx = - (headerHeight + maxListHeight + 6);
+    } else {
+      // Neither side has comfortable space — prefer below with a small scrollable list
+      topPx = wrapperRect.height + 6;
+      const fallback = Math.max(40, availableBelowForList || availableAboveForList || 80);
+      maxListHeight = Math.max(40, Math.min(desiredListHeight, fallback));
+    }
+
+    setPickerTop(topPx);
+    setPickerListMaxHeight(maxListHeight);
+    setPickerMeasured(true);
+  }, [showEventPicker, eventSearch, editEventIds.length, inheritedEventIds.length, allEvents.length]);
 
   // Close picker when clicking outside
   useEffect(() => {
@@ -311,7 +371,10 @@ export function TaskItem({ task }: TaskItemProps) {
                     + Event
                   </button>
                   {showEventPicker && (
-                    <div className="metadata-event-picker">
+                    <div
+                      className="metadata-event-picker"
+                      style={{ top: pickerTop !== undefined ? `${pickerTop}px` : undefined }}
+                    >
                       <input
                         ref={pickerSearchRef}
                         className="metadata-picker-search"
@@ -329,7 +392,7 @@ export function TaskItem({ task }: TaskItemProps) {
                           }
                         }}
                       />
-                      <div className="metadata-picker-list">
+                      <div className="metadata-picker-list" style={{ maxHeight: pickerListMaxHeight !== undefined ? `${pickerListMaxHeight}px` : undefined }}>
                         {allEvents
                           .filter((e) =>
                             !editEventIds.includes(e.id) &&

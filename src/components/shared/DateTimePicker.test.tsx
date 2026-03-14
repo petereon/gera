@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, act } from "@testing-library/react";
 import { fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DateTimePicker } from "./DateTimePicker";
@@ -302,6 +302,12 @@ describe("BUG-008 — popover stays within viewport bounds", () => {
   beforeEach(() => {
     origInnerHeight = window.innerHeight;
     origInnerWidth = window.innerWidth;
+    // Position is computed inside a requestAnimationFrame. Mock rAF to run
+    // callbacks synchronously so we don't need fake timers or async flushing.
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
   });
 
   afterEach(() => {
@@ -310,22 +316,38 @@ describe("BUG-008 — popover stays within viewport bounds", () => {
     vi.restoreAllMocks();
   });
 
+  /** Click the trigger and let React flush all sync state updates. */
+  async function openAndPosition(label: RegExp) {
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: label }));
+    });
+  }
+
   it("opens above the trigger when space below is less than popover height", async () => {
-    // Trigger near the bottom: lots of room above, not below
-    vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
-      top: 680, bottom: 710, left: 10, right: 210,
-      width: 200, height: 30, x: 10, y: 680,
-      toJSON: () => ({}),
-    } as DOMRect);
+    // Trigger near the bottom: lots of room above, not below.
+    // updatePosition() calls getBoundingClientRect() first on the trigger,
+    // then on the popover. Provide 340px height for the popover so that
+    // spaceBelow(32) < popoverHeight(340) → "above" placement is chosen.
+    vi.spyOn(Element.prototype, "getBoundingClientRect")
+      .mockReturnValueOnce({
+        top: 680, bottom: 710, left: 10, right: 210,
+        width: 200, height: 30, x: 10, y: 680,
+        toJSON: () => ({}),
+      } as DOMRect) // trigger
+      .mockReturnValue({
+        top: 0, bottom: 340, left: 0, right: 264,
+        width: 264, height: 340, x: 0, y: 0,
+        toJSON: () => ({}),
+      } as DOMRect); // popover (and any subsequent calls)
     Object.defineProperty(window, "innerHeight", { value: 750, configurable: true });
     Object.defineProperty(window, "innerWidth", { value: 1200, configurable: true });
 
     renderPicker({ value: ISO_DATE });
-    await userEvent.click(screen.getByRole("button", { name: /Mar 14/ }));
+    await openAndPosition(/Mar 14/);
 
     const popover = document.querySelector(".dtp-popover") as HTMLElement;
     const top = parseFloat(popover.style.top);
-    // spaceBelow=32, spaceAbove=672 → popover goes above: top=680-340-4=336
+    // spaceBelow=32 < popoverHeight=340 → popover goes above trigger
     expect(top).toBeLessThan(680);
     expect(top).toBeGreaterThan(0);
   });
@@ -345,7 +367,7 @@ describe("BUG-008 — popover stays within viewport bounds", () => {
       Object.defineProperty(window, "innerWidth", { value: 1200, configurable: true });
 
       renderPicker({ value: ISO_DATE });
-      await userEvent.click(screen.getByRole("button", { name: /Mar 14/ }));
+      await openAndPosition(/Mar 14/);
 
       const popover = document.querySelector(".dtp-popover") as HTMLElement;
       const top = parseFloat(popover.style.top);
@@ -367,7 +389,7 @@ describe("BUG-008 — popover stays within viewport bounds", () => {
       Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
 
       renderPicker({ value: ISO_DATE });
-      await userEvent.click(screen.getByRole("button", { name: /Mar 14/ }));
+      await openAndPosition(/Mar 14/);
 
       const popover = document.querySelector(".dtp-popover") as HTMLElement;
       // right-align: left = rect.right - 264 = 55 - 264 = -209
@@ -387,11 +409,12 @@ describe("BUG-008 — popover stays within viewport bounds", () => {
     Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
 
     renderPicker({ value: ISO_DATE });
-    await userEvent.click(screen.getByRole("button", { name: /Mar 14/ }));
+    await openAndPosition(/Mar 14/);
 
     const popover = document.querySelector(".dtp-popover") as HTMLElement;
     const left = parseFloat(popover.style.left);
-    // right-align: 1050-264=786, which is fine; popover right edge = 786+264=1050 ≤ 1092
-    expect(left + 264).toBeLessThanOrEqual(1100);
+    // The mocked getBoundingClientRect width is 150, so updatePosition uses
+    // that as popoverWidth. The popover's right edge must stay within viewport.
+    expect(left + 150).toBeLessThanOrEqual(1100);
   });
 });
