@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../stores/useAppStore';
 import { useNoteFiltering } from '../../hooks/useNoteFiltering';
@@ -39,6 +39,9 @@ export function NotesView({}: NotesViewProps) {
   const [eventSearch, setEventSearch] = useState('');
   const pickerRef = useRef<HTMLDivElement>(null);
   const pickerSearchRef = useRef<HTMLInputElement>(null);
+  const [pickerMeasured, setPickerMeasured] = useState(false);
+  const [pickerTop, setPickerTop] = useState<number | undefined>(undefined);
+  const [pickerListMaxHeight, setPickerListMaxHeight] = useState<number | undefined>(undefined);
 
   // Escape closes the note editor and returns to grid
   useEffect(() => {
@@ -56,8 +59,61 @@ export function NotesView({}: NotesViewProps) {
 
   // Focus search input when event picker opens
   useEffect(() => {
-    if (showEventPicker) pickerSearchRef.current?.focus();
-  }, [showEventPicker]);
+    if (showEventPicker && pickerMeasured) pickerSearchRef.current?.focus();
+  }, [showEventPicker, pickerMeasured]);
+
+  // Measure popup and clamp to viewport (compute placement and max-height)
+  useLayoutEffect(() => {
+    if (!showEventPicker || !pickerRef.current) {
+      setPickerMeasured(false);
+      setPickerTop(undefined);
+      setPickerListMaxHeight(undefined);
+      return;
+    }
+
+    const wrapper = pickerRef.current;
+    const popup = wrapper.querySelector<HTMLElement>('.metadata-event-picker');
+    if (!popup) return;
+
+    const searchInput = popup.querySelector<HTMLInputElement>('.metadata-picker-search');
+    const listEl = popup.querySelector<HTMLElement>('.metadata-picker-list');
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const viewportHeight = document.documentElement.clientHeight;
+    const margin = 12;
+
+    const headerHeight = searchInput ? searchInput.getBoundingClientRect().height : 40;
+    const desiredListHeight = listEl ? Math.min(listEl.scrollHeight, 600) : 180;
+
+    const spaceBelow = Math.max(0, viewportHeight - wrapperRect.bottom - margin);
+    const spaceAbove = Math.max(0, wrapperRect.top - margin);
+
+    const minListHeight = 60;
+
+    // Prefer opening below; open above only if necessary.
+    const availableBelowForList = Math.max(0, spaceBelow - headerHeight - 8);
+    const availableAboveForList = Math.max(0, spaceAbove - headerHeight - 8);
+
+    let topPx: number;
+    let maxListHeight: number;
+
+    if (availableBelowForList >= minListHeight) {
+      topPx = wrapperRect.height + 6;
+      maxListHeight = Math.min(desiredListHeight, availableBelowForList);
+      maxListHeight = Math.max(minListHeight, maxListHeight);
+    } else if (availableAboveForList >= minListHeight) {
+      maxListHeight = Math.min(desiredListHeight, availableAboveForList);
+      maxListHeight = Math.max(minListHeight, maxListHeight);
+      topPx = - (headerHeight + maxListHeight + 6);
+    } else {
+      topPx = wrapperRect.height + 6;
+      const fallback = Math.max(40, availableBelowForList || availableAboveForList || 80);
+      maxListHeight = Math.max(40, Math.min(desiredListHeight, fallback));
+    }
+
+    setPickerTop(topPx);
+    setPickerListMaxHeight(maxListHeight);
+    setPickerMeasured(true);
+  }, [showEventPicker, eventSearch, eventIds.length, projectIds.length, events.length]);
 
   // Close picker when clicking outside
   useEffect(() => {
@@ -178,10 +234,10 @@ export function NotesView({}: NotesViewProps) {
   if (selectedNote) {
     return (
       <div className="notes-view notes-view--editor-mode">
-        {isLoadingNote || noteContent === null ? (
-          <div className="note-loading">Loading...</div>
-        ) : loadError ? (
+        {loadError ? (
           <div className="note-error">{loadError}</div>
+        ) : isLoadingNote || noteContent === null ? (
+          <div className="note-loading">Loading...</div>
         ) : (
           <>
             {/* Header row — mirrors the notes grid section-header-row */}
@@ -235,7 +291,7 @@ export function NotesView({}: NotesViewProps) {
                   + Event
                 </button>
                 {showEventPicker && (
-                  <div className="metadata-event-picker">
+                  <div className="metadata-event-picker" style={{ top: pickerTop !== undefined ? `${pickerTop}px` : undefined }}>
                     <input
                       ref={pickerSearchRef}
                       className="metadata-picker-search"
@@ -253,7 +309,7 @@ export function NotesView({}: NotesViewProps) {
                         }
                       }}
                     />
-                    <div className="metadata-picker-list">
+                    <div className="metadata-picker-list" style={{ maxHeight: pickerListMaxHeight !== undefined ? `${pickerListMaxHeight}px` : undefined }}>
                       {availableEvents.length === 0 ? (
                         <div className="metadata-picker-empty">No events found</div>
                       ) : (

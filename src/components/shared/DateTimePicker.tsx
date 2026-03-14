@@ -112,30 +112,70 @@ export function DateTimePicker({
   const updatePosition = () => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    const popoverHeight = 340; // approximate
-    const popoverWidth = 264;
-    const spaceBelow = window.innerHeight - rect.bottom - 8;
-    const spaceAbove = rect.top - 8;
+    const margin = 8;
+
+    // Use measured popover size when available (popover may not be mounted yet).
+    const measured = popoverRef.current?.getBoundingClientRect();
+    let popoverHeight = measured?.height ?? 340;
+    let popoverWidth = measured?.width ?? 264;
+
+    const viewportW = window.innerWidth;
+    const viewportH = window.innerHeight;
+
+    const spaceBelow = viewportH - rect.bottom - margin;
+    const spaceAbove = rect.top - margin;
+
+    let preferBelow = (spaceBelow >= popoverHeight) || (spaceBelow >= spaceAbove);
 
     let top: number;
-    if (spaceBelow >= popoverHeight || spaceBelow >= spaceAbove) {
+    if (preferBelow) {
       top = rect.bottom + 4;
     } else {
       top = rect.top - popoverHeight - 4;
     }
 
-    let left = rect.left;
-    if (left + popoverWidth > window.innerWidth - 8) {
-      left = rect.right - popoverWidth;
+    // If popover is taller than viewport, clamp its height and pin to margin
+    let maxHeight: number | undefined;
+    const maxAllowedHeight = Math.max(0, viewportH - margin * 2);
+    if (popoverHeight > maxAllowedHeight) {
+      maxHeight = maxAllowedHeight;
+      popoverHeight = maxAllowedHeight;
+      top = margin;
+    } else {
+      // clamp top so popover stays within viewport
+      top = Math.min(Math.max(top, margin), Math.max(margin, viewportH - popoverHeight - margin));
     }
 
-    setPopoverStyle({ top, left });
+    // Clamp left within viewport
+    let left = rect.left;
+    if (left + popoverWidth > viewportW - margin) {
+      left = rect.right - popoverWidth;
+    }
+    left = Math.min(Math.max(left, margin), Math.max(margin, viewportW - popoverWidth - margin));
+
+    const style: React.CSSProperties = { top, left };
+    if (maxHeight) style.maxHeight = maxHeight;
+    setPopoverStyle(style);
   };
 
   const openPopover = () => {
-    updatePosition();
     setOpen(true);
   };
+
+  // Recompute position after popover mounts and when relevant state changes
+  useLayoutEffect(() => {
+    if (!open) return;
+    // Defer to next frame to allow popover DOM to mount and measure
+    const id = requestAnimationFrame(() => updatePosition());
+    const onResize = () => updatePosition();
+    window.addEventListener('resize', onResize);
+    window.addEventListener('scroll', onResize, true);
+    return () => {
+      cancelAnimationFrame(id);
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('scroll', onResize, true);
+    };
+  }, [open, viewYear, viewMonth, includeTime, value]);
 
   // Close on outside click (mousedown) or Escape
   useEffect(() => {

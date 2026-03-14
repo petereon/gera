@@ -19,9 +19,20 @@ dependencies = [
 [project.entry-points.pytauri]
 ext_mod = "gera.ext_mod"
 
+[project.optional-dependencies]
+test = [
+    "pytest>=8",
+    "pytest-cov",
+]
+
 [build-system]
 requires = ["setuptools >= 80", "setuptools-scm >= 8"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages]
 find = { where = ["src-python"] }
+
+[tool.pytest.ini_options]
+testpaths = ["src-python/tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]

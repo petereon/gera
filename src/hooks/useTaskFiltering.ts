@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, useEffect } from 'react';
+import { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import { EventEntity, TaskEntity, searchTasks } from '../api';
 import { getTaskDedupeKey, deduplicate } from '../utils/deduplication';
 
@@ -137,6 +137,13 @@ export function useTaskFiltering(
     });
   }, [upcomingEventsWithTasks, search, filterTask, tasksByEventId]);
 
+  // Snapshot the local result count into a ref so the FTS effect can read
+  // it without listing the derived arrays as deps (which would cause an
+  // infinite loop: FTS resolves → setBackendResults → re-render → new array
+  // refs → effect re-fires → repeat).
+  const localResultCountRef = useRef(0);
+  localResultCountRef.current = filteredOtherTasks.length + filteredEventsWithTasks.length;
+
   // Backend search: if local results are few and query is long enough, search backend
   useEffect(() => {
     if (search.length < 3) {
@@ -144,10 +151,8 @@ export function useTaskFiltering(
       return;
     }
 
-    const localResultCount = filteredOtherTasks.length + filteredEventsWithTasks.length;
-    
     // Only search backend if we have few local results
-    if (localResultCount < 5) {
+    if (localResultCountRef.current < 5) {
       setIsSearching(true);
       const timer = setTimeout(async () => {
         try {
@@ -163,7 +168,7 @@ export function useTaskFiltering(
 
       return () => clearTimeout(timer);
     }
-  }, [search, filteredOtherTasks, filteredEventsWithTasks]);
+  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Merge local and backend results, deduping; re-apply deadline sort
   const mergedOtherTasks = useMemo(() => {

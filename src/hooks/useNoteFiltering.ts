@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { NoteEntity, searchNotes } from '../api';
 import { getNoteDedupeKey, deduplicate } from '../utils/deduplication';
 
@@ -26,6 +26,12 @@ export function useNoteFiltering(notes: NoteEntity[], search: string) {
     );
   }, [notes, search]);
 
+  // Snapshot local count into a ref — same pattern as useTaskFiltering to
+  // prevent the FTS effect from listing filteredNotes as a dep (which causes
+  // an infinite re-render loop via setBackendResults → new array ref → re-fire).
+  const localResultCountRef = useRef(0);
+  localResultCountRef.current = filteredNotes.length;
+
   // Backend search: if local results are few and query is long enough, search backend
   useEffect(() => {
     if (search.length < 3) {
@@ -33,7 +39,7 @@ export function useNoteFiltering(notes: NoteEntity[], search: string) {
       return;
     }
 
-    if (filteredNotes.length < 5) {
+    if (localResultCountRef.current < 5) {
       setIsSearching(true);
       const timer = setTimeout(async () => {
         try {
@@ -49,7 +55,7 @@ export function useNoteFiltering(notes: NoteEntity[], search: string) {
 
       return () => clearTimeout(timer);
     }
-  }, [search, filteredNotes]);
+  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Merge local and backend results, deduping by filename:0:title_hash
   const mergedNotes = useMemo(() => {

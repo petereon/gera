@@ -35,7 +35,7 @@ from gera.frontmatter import parse_frontmatter
 # the less specific ones don't consume their prefixes.
 
 # @before[OFFSET]:TARGET  (target = event-id or datetime)
-_BEFORE_REF_RE = re.compile(r"@before\[(\d+[YMWDhm])\]:([\w][\w:.\-]*)")
+_BEFORE_REF_RE = re.compile(r"@before\[(\d+[YMWdhm])\]:([\w][\w:.\-]*)")
 
 # @DATETIME  e.g. @2026-3-3T18:00
 _DATETIME_REF_RE = re.compile(r"@(\d{4}-\d{1,2}-\d{1,2}T\d{2}:\d{2})")
@@ -47,7 +47,7 @@ _EVENT_REF_RE = re.compile(r"@(?!before\[)([a-zA-Z][\w\-]*)")
 _PROJECT_TAG_RE = re.compile(r"#([a-zA-Z][\w\-]*)")
 
 # Title extraction from raw markdown
-_H1_RE = re.compile(r"^#\s+(.+)$", re.MULTILINE)
+_HEADING_RE = re.compile(r"^#{1,6}\s+(.+)$", re.MULTILINE)
 
 
 # ---------------------------------------------------------------------------
@@ -95,7 +95,7 @@ def extract_title(body: str, fallback_words: int = 6) -> str:
 
     Uses the first ``# H1`` heading.  Falls back to the first *N* words.
     """
-    match = _H1_RE.search(body)
+    match = _HEADING_RE.search(body)
     if match:
         return match.group(1).strip()
     words = body.split()[:fallback_words]

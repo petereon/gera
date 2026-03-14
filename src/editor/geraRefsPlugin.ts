@@ -32,7 +32,10 @@ import {
   $isRangeSelection,
   $isTextNode,
   COMMAND_PRIORITY_CRITICAL,
+  COMMAND_PRIORITY_LOW,
   ElementNode,
+  KEY_ARROW_LEFT_COMMAND,
+  KEY_ARROW_RIGHT_COMMAND,
   KEY_BACKSPACE_COMMAND,
   TextNode,
   type LexicalNode,
@@ -258,6 +261,69 @@ function findChipBeforeCursor(selection: RangeSelection): GeraRefNode | null {
 }
 
 /* ------------------------------------------------------------------ */
+/* Scroll preservation                                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Lock `el.scrollTop` to `savedTop` by intercepting every `scroll` event for
+ * `durationMs` ms.  Returns an unlock function.  This is more reliable than a
+ * single rAF because Lexical can trigger multiple reconciliation cycles (e.g.
+ * the selection-watcher's follow-up update) that each reset the scroll.
+ */
+function lockScrollTop(el: HTMLElement, savedTop: number, durationMs = 200): () => void {
+  const handler = () => { el.scrollTop = savedTop; };
+  el.addEventListener('scroll', handler, { passive: true });
+  const id = window.setTimeout(() => el.removeEventListener('scroll', handler), durationMs);
+  return () => { window.clearTimeout(id); el.removeEventListener('scroll', handler); };
+}
+
+function getScrollEl(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('.mdxeditor-root-contenteditable');
+}
+
+/* ------------------------------------------------------------------ */
+/* Chip-navigation helpers (BUG-010)                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Place the cursor visually and logically right after `chip`.
+ *
+ * If a text node already follows the chip (always the case for typeahead-
+ * inserted chips, which carry a trailing space), we select offset 0 of it
+ * (before the first character = right after the chip).
+ *
+ * If no trailing text exists (task-modal chips are imported without one),
+ * we insert a single space and select offset 0 of it.  An empty "" text
+ * node has no DOM anchor and the browser renders the caret at the start of
+ * the line; a space gives it a real anchor.  The trailing space is stripped
+ * by `sanitizeContent` on save, so it never reaches the file.
+ */
+function selectAfterChip(chip: GeraRefNode): void {
+  const next = chip.getNextSibling();
+  const trailing: TextNode = $isTextNode(next)
+    ? next
+    : (() => { const t = $createTextNode(' '); chip.insertAfter(t); return t; })();
+  trailing.select(0, 0);
+}
+
+/**
+ * Place the cursor visually and logically right before `chip`.
+ *
+ * If a text node precedes the chip we select its end.  Otherwise we use an
+ * element selection at the chip's index (start of parent = before the chip),
+ * which renders correctly because the cursor is at the beginning of content.
+ */
+function selectBeforeChip(chip: GeraRefNode): void {
+  const prev = chip.getPreviousSibling();
+  if ($isTextNode(prev)) {
+    prev.selectEnd();
+    return;
+  }
+  const parent = chip.getParent();
+  if (parent) parent.select(chip.getIndexWithinParent(), chip.getIndexWithinParent());
+}
+
+/* ------------------------------------------------------------------ */
 /* Plugin                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -270,18 +336,24 @@ export const geraRefsPlugin = realmPlugin({
       [addComposerChild$]: GeraRefTypeahead,
     });
 
-    /* ---- runtime hooks (backspace, re-chip, cursor tracking) ---- */
+    /* ---- runtime hooks (backspace, arrows, re-chip, cursor tracking) ---- */
 
     let unregisterBackspace: (() => void) | null = null;
+    let unregisterArrowRight: (() => void) | null = null;
+    let unregisterArrowLeft: (() => void) | null = null;
     let unregisterTransform: (() => void) | null = null;
     let unregisterSelectionWatcher: (() => void) | null = null;
     let lastSelectionTextNodeKey: string | null = null;
 
     realm.sub(activeEditor$, (editor) => {
       unregisterBackspace?.();
+      unregisterArrowRight?.();
+      unregisterArrowLeft?.();
       unregisterTransform?.();
       unregisterSelectionWatcher?.();
       unregisterBackspace = null;
+      unregisterArrowRight = null;
+      unregisterArrowLeft = null;
       unregisterTransform = null;
       unregisterSelectionWatcher = null;
       lastSelectionTextNodeKey = null;
@@ -299,13 +371,14 @@ export const geraRefsPlugin = realmPlugin({
             const chip = findChipBeforeCursor(selection);
             if (chip) {
               event.preventDefault();
+              const scrollEl = getScrollEl();
+              if (scrollEl) lockScrollTop(scrollEl, scrollEl.scrollTop);
               // Also remove any whitespace-only text nodes between chip and cursor
               const anchor = selection.anchor;
               if (anchor.type === 'text') {
                 const textNode = anchor.getNode();
                 const textBefore = textNode.getTextContent().slice(0, anchor.offset);
                 if (textBefore.trim().length === 0) {
-                  // Remove the whitespace prefix or the whole node if it's all whitespace
                   const textAfter = textNode.getTextContent().slice(anchor.offset);
                   if (textAfter.length > 0) {
                     textNode.setTextContent(textAfter);
@@ -325,11 +398,12 @@ export const geraRefsPlugin = realmPlugin({
             const nodes = selection.getNodes();
             if (nodes.length === 1 && $isGeraRefNode(nodes[0])) {
               event.preventDefault();
+              const scrollEl = getScrollEl();
+              if (scrollEl) lockScrollTop(scrollEl, scrollEl.scrollTop);
               const chip = nodes[0];
               const next = chip.getNextSibling();
               const prev = chip.getPreviousSibling();
               chip.remove();
-              // Place cursor sensibly after removal
               if (next && $isTextNode(next)) {
                 next.select(0, 0);
               } else if (prev && $isTextNode(prev)) {
@@ -342,6 +416,87 @@ export const geraRefsPlugin = realmPlugin({
           return false;
         },
         COMMAND_PRIORITY_CRITICAL,
+      );
+
+      /* -- Step 0b: right arrow skips over chip (BUG-010) ------------ */
+      // Chips act like a single character: right/left arrows skip over them
+      // instead of entering node-selection, which can lose the cursor.
+      unregisterArrowRight = editor.registerCommand(
+        KEY_ARROW_RIGHT_COMMAND,
+        (event: KeyboardEvent) => {
+          // Don't intercept Shift (selection extend) or Ctrl/Cmd (word jump)
+          if (event.shiftKey || event.ctrlKey || event.metaKey) return false;
+
+          const selection = $getSelection();
+
+          // Node-selected chip → move cursor to after the chip
+          if ($isNodeSelection(selection)) {
+            const nodes = selection.getNodes();
+            if (nodes.length === 1 && $isGeraRefNode(nodes[0])) {
+              event.preventDefault();
+              selectAfterChip(nodes[0]);
+              return true;
+            }
+          }
+
+          // Collapsed cursor at the end of a text node whose next sibling is a chip
+          if ($isRangeSelection(selection) && selection.isCollapsed()) {
+            const { anchor } = selection;
+            if (anchor.type === 'text') {
+              const node = anchor.getNode();
+              if (anchor.offset === node.getTextContentSize()) {
+                const next = node.getNextSibling();
+                if ($isGeraRefNode(next)) {
+                  event.preventDefault();
+                  selectAfterChip(next);
+                  return true;
+                }
+              }
+            }
+          }
+
+          return false;
+        },
+        COMMAND_PRIORITY_LOW,
+      );
+
+      /* -- Step 0c: left arrow skips over chip (BUG-010) ------------- */
+      unregisterArrowLeft = editor.registerCommand(
+        KEY_ARROW_LEFT_COMMAND,
+        (event: KeyboardEvent) => {
+          if (event.shiftKey || event.ctrlKey || event.metaKey) return false;
+
+          const selection = $getSelection();
+
+          // Node-selected chip → move cursor to before the chip
+          if ($isNodeSelection(selection)) {
+            const nodes = selection.getNodes();
+            if (nodes.length === 1 && $isGeraRefNode(nodes[0])) {
+              event.preventDefault();
+              selectBeforeChip(nodes[0]);
+              return true;
+            }
+          }
+
+          // Collapsed cursor at the start of a text node whose prev sibling is a chip
+          if ($isRangeSelection(selection) && selection.isCollapsed()) {
+            const { anchor } = selection;
+            if (anchor.type === 'text') {
+              const node = anchor.getNode();
+              if (anchor.offset === 0) {
+                const prev = node.getPreviousSibling();
+                if ($isGeraRefNode(prev)) {
+                  event.preventDefault();
+                  selectBeforeChip(prev);
+                  return true;
+                }
+              }
+            }
+          }
+
+          return false;
+        },
+        COMMAND_PRIORITY_LOW,
       );
 
       /* -- Step 1: re-chip transform --------------------------------- */

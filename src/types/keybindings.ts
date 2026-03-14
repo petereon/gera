@@ -11,6 +11,20 @@ export interface KeyBinding {
 
 const STORAGE_KEY = 'keybinding-overrides';
 
+// ── Storage adapter (injectable for testing) ───────────────────────────────
+
+export interface StorageAdapter {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
+let _storage: StorageAdapter = localStorage;
+
+export function setStorageAdapter(s: StorageAdapter): void {
+  _storage = s;
+}
+
 export const ALL_BINDINGS: KeyBinding[] = [
   // ── Configurable global shortcuts ──────────────────────────────────────
   { action: 'openCommandPalette', label: 'Open command palette', keys: '⌘K',  scope: 'global',   configurable: true },
@@ -36,7 +50,7 @@ export const ALL_BINDINGS: KeyBinding[] = [
 
 function loadOverrides(): Record<string, string> {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+    return JSON.parse(_storage.getItem(STORAGE_KEY) ?? '{}');
   } catch {
     return {};
   }
@@ -45,11 +59,11 @@ function loadOverrides(): Record<string, string> {
 export function saveOverride(action: string, keys: string): void {
   const overrides = loadOverrides();
   overrides[action] = keys;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides));
+  _storage.setItem(STORAGE_KEY, JSON.stringify(overrides));
 }
 
 export function resetAllOverrides(): void {
-  localStorage.removeItem(STORAGE_KEY);
+  _storage.removeItem(STORAGE_KEY);
 }
 
 // ── Lookup ─────────────────────────────────────────────────────────────────

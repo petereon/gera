@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
@@ -16,6 +17,21 @@ export default defineConfig(async () => ({
     watch: {
       // 3. tell vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**", "**/.venv/**"],
+    },
+  },
+
+  test: {
+    globals: true,
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
+    alias: {
+      "@tauri-apps/api/core": path.resolve("./src/test/mocks/tauri-core.ts"),
+      "tauri-plugin-pytauri-api": path.resolve("./src/test/mocks/pytauri.ts"),
+    },
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/test/**", "src/main.tsx"],
     },
   },
 }));
