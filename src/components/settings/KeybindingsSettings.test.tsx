@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { KeybindingsSettings } from "./KeybindingsSettings";
 
@@ -98,14 +98,14 @@ describe("KeybindingsSettings — recording", () => {
     renderKB();
     await userEvent.click(screen.getAllByTitle("Record new shortcut")[0]);
     // Fire a keydown to simulate the user pressing a key
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", metaKey: true, bubbles: true }));
+    act(() => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", metaKey: true, bubbles: true })); });
     await screen.findByText("⌘P");
   });
 
   it("cancels recording when Escape is pressed", async () => {
     renderKB();
     await userEvent.click(screen.getAllByTitle("Record new shortcut")[0]);
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    act(() => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
     await screen.findByText("Press a key…").then(() => {}).catch(() => {}); // wait for re-render
     // After Escape, recording mode is off — no Confirm button
     expect(screen.queryByTitle("Confirm")).not.toBeInTheDocument();
@@ -132,7 +132,7 @@ describe("KeybindingsSettings — commit", () => {
     mockFormatKeyEvent.mockReturnValue("⌘P");
     renderKB();
     await userEvent.click(screen.getAllByTitle("Record new shortcut")[0]);
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", metaKey: true, bubbles: true }));
+    act(() => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", metaKey: true, bubbles: true })); });
     await screen.findByText("⌘P");
     await userEvent.click(screen.getByTitle("Confirm"));
     expect(mockSaveOverride).toHaveBeenCalledWith("openCommandPalette", "⌘P");
@@ -142,7 +142,7 @@ describe("KeybindingsSettings — commit", () => {
     mockFormatKeyEvent.mockReturnValue("⌘P");
     renderKB();
     await userEvent.click(screen.getAllByTitle("Record new shortcut")[0]);
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", metaKey: true, bubbles: true }));
+    act(() => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", metaKey: true, bubbles: true })); });
     await screen.findByText("⌘P");
     await userEvent.click(screen.getByTitle("Confirm"));
     expect(screen.queryByTitle("Confirm")).not.toBeInTheDocument();
@@ -162,7 +162,7 @@ describe("KeybindingsSettings — conflict detection", () => {
     renderKB();
     // Start recording for "Open command palette"
     await userEvent.click(screen.getAllByTitle("Record new shortcut")[0]);
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "1", metaKey: true, bubbles: true }));
+    act(() => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "1", metaKey: true, bubbles: true })); });
     await screen.findByText(/Conflicts with "Go to Tasks"/i);
   });
 
@@ -174,7 +174,7 @@ describe("KeybindingsSettings — conflict detection", () => {
     });
     renderKB();
     await userEvent.click(screen.getAllByTitle("Record new shortcut")[0]);
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "1", metaKey: true, bubbles: true }));
+    act(() => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "1", metaKey: true, bubbles: true })); });
     await screen.findByText(/Conflicts with/);
     expect(screen.getByTitle("Confirm")).toBeDisabled();
   });

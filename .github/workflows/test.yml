@@ -31,10 +31,6 @@ jobs:
 
       - uses: astral-sh/setup-uv@v5
 
-      - name: Install project with test dependencies
-        working-directory: src-tauri
-        run: uv pip install --system -e ".[test]"
-
       - name: Run tests
         working-directory: src-tauri
-        run: uv run --no-project pytest
+        run: uv run --extra test pytest

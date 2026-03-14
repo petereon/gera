@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { CommandPalette } from "./CommandPalette";
@@ -233,7 +233,7 @@ describe("CommandPalette — closing", () => {
     // close() calls setQuery('') — verify the internal state was cleared
     // by re-opening and confirming the input resets (via the open useEffect)
     await userEvent.click(document.body); // unfocus
-    useAppStore.setState({ commandPaletteOpen: true });
+    act(() => { useAppStore.setState({ commandPaletteOpen: true }); });
     await waitFor(() =>
       expect(screen.getByPlaceholderText("Search or run a command…")).toHaveValue("")
     );

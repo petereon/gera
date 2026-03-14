@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { SettingsModal } from "./SettingsModal";
@@ -50,12 +50,16 @@ function makeSyncResult(created = 2, updated = 1): SyncResult {
   return { created, updated } as SyncResult;
 }
 
-function renderModal(isOpen = true, onClose = vi.fn()) {
-  return render(
+async function renderModal(isOpen = true, onClose = vi.fn()) {
+  const result = render(
     <MemoryRouter>
       <SettingsModal isOpen={isOpen} onClose={onClose} />
     </MemoryRouter>
   );
+  // Flush the async loadAccounts() effect so its setAccounts() state update
+  // is captured inside act() and doesn't leak as an unhandled warning.
+  await act(async () => {});
+  return result;
 }
 
 beforeEach(() => {
@@ -70,13 +74,13 @@ beforeEach(() => {
 // ── Visibility ────────────────────────────────────────────────────────────────
 
 describe("SettingsModal — visibility", () => {
-  it("renders nothing when isOpen is false", () => {
-    renderModal(false);
+  it("renders nothing when isOpen is false", async () => {
+    await renderModal(false);
     expect(screen.queryByText("Settings")).not.toBeInTheDocument();
   });
 
-  it("renders the modal when isOpen is true", () => {
-    renderModal();
+  it("renders the modal when isOpen is true", async () => {
+    await renderModal();
     expect(screen.getByText("Settings")).toBeInTheDocument();
   });
 });
@@ -86,28 +90,28 @@ describe("SettingsModal — visibility", () => {
 describe("SettingsModal — closing", () => {
   it("calls onClose when the × button is clicked", async () => {
     const onClose = vi.fn();
-    renderModal(true, onClose);
+    await renderModal(true, onClose);
     await userEvent.click(screen.getByRole("button", { name: "×" }));
     expect(onClose).toHaveBeenCalledOnce();
   });
 
   it("calls onClose when the backdrop is clicked", async () => {
     const onClose = vi.fn();
-    renderModal(true, onClose);
+    await renderModal(true, onClose);
     await userEvent.click(document.querySelector(".modal-backdrop")!);
     expect(onClose).toHaveBeenCalledOnce();
   });
 
   it("does not call onClose when the panel is clicked", async () => {
     const onClose = vi.fn();
-    renderModal(true, onClose);
+    await renderModal(true, onClose);
     await userEvent.click(document.querySelector(".modal-panel")!);
     expect(onClose).not.toHaveBeenCalled();
   });
 
   it("calls onClose when Escape is pressed", async () => {
     const onClose = vi.fn();
-    renderModal(true, onClose);
+    await renderModal(true, onClose);
     await userEvent.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -116,25 +120,25 @@ describe("SettingsModal — closing", () => {
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 
 describe("SettingsModal — tabs", () => {
-  it("shows General tab content by default", () => {
-    renderModal();
+  it("shows General tab content by default", async () => {
+    await renderModal();
     expect(screen.getByTestId("theme-toggle")).toBeInTheDocument();
   });
 
   it("switches to Calendars tab when clicked", async () => {
-    renderModal();
+    await renderModal();
     await userEvent.click(screen.getByRole("button", { name: "Calendars" }));
     expect(screen.getByText("Google Calendar Accounts")).toBeInTheDocument();
   });
 
   it("switches to Keybindings tab when clicked", async () => {
-    renderModal();
+    await renderModal();
     await userEvent.click(screen.getByRole("button", { name: "Keybindings" }));
     expect(screen.getByTestId("keybindings-settings")).toBeInTheDocument();
   });
 
   it("marks the active tab with settings-tab--active class", async () => {
-    renderModal();
+    await renderModal();
     const generalTab = screen.getByRole("button", { name: "General" });
     expect(generalTab).toHaveClass("settings-tab--active");
     await userEvent.click(screen.getByRole("button", { name: "Calendars" }));
@@ -146,19 +150,19 @@ describe("SettingsModal — tabs", () => {
 // ── General tab ───────────────────────────────────────────────────────────────
 
 describe("SettingsModal — general tab", () => {
-  it("shows the ThemeToggle", () => {
-    renderModal();
+  it("shows the ThemeToggle", async () => {
+    await renderModal();
     expect(screen.getByTestId("theme-toggle")).toBeInTheDocument();
   });
 
-  it("shows the 'Restart tour' button", () => {
-    renderModal();
+  it("shows the 'Restart tour' button", async () => {
+    await renderModal();
     expect(screen.getByRole("button", { name: "Restart tour" })).toBeInTheDocument();
   });
 
   it("'Restart tour' calls resetTour, onClose, and startTour", async () => {
     const onClose = vi.fn();
-    renderModal(true, onClose);
+    await renderModal(true, onClose);
     await userEvent.click(screen.getByRole("button", { name: "Restart tour" }));
     expect(mockResetTour).toHaveBeenCalledOnce();
     expect(onClose).toHaveBeenCalledOnce();
@@ -170,7 +174,7 @@ describe("SettingsModal — general tab", () => {
 
 describe("SettingsModal — calendars tab", () => {
   async function openCalendarsTab() {
-    renderModal();
+    await renderModal();
     await userEvent.click(screen.getByRole("button", { name: "Calendars" }));
   }
 

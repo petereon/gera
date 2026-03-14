@@ -80,6 +80,7 @@ describe("useGeraSync — initial load", () => {
 
 describe("useGeraSync — error handling", () => {
   it("does not throw when an API call rejects; store remains unchanged", async () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     mockListEvents.mockRejectedValue(new Error("network error"));
 
     // Should not throw
@@ -89,6 +90,7 @@ describe("useGeraSync — error handling", () => {
     // partial data (the Promise.all rejects before any setX is called)
     await new Promise((r) => setTimeout(r, 50));
     expect(useAppStore.getState().events).toEqual(initialAppState.events);
+    consoleSpy.mockRestore();
   });
 });
 

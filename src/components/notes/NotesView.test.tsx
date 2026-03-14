@@ -185,10 +185,12 @@ describe("NotesView — editor view", () => {
   });
 
   it("shows error message when note content fails to load", async () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     mockGetNoteContent.mockRejectedValue(new Error("Network error"));
     useAppStore.setState({ selectedNote: makeNote() });
     renderView();
     await waitFor(() => expect(screen.getByText("Failed to load note")).toBeInTheDocument());
+    consoleSpy.mockRestore();
   });
 
   it("shows the NOTE section label in editor mode", async () => {

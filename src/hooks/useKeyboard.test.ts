@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { renderHook, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import React from "react";
 import { useKeyboard } from "./useKeyboard";
@@ -28,7 +28,9 @@ setStorageAdapter({
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fire(key: string, opts: KeyboardEventInit = {}) {
-  document.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, ...opts }));
+  act(() => {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, ...opts }));
+  });
 }
 
 function renderKB(initialPath = "/tasks") {
@@ -63,7 +65,9 @@ describe("useKeyboard — command palette", () => {
     const input = document.createElement("input");
     document.body.appendChild(input);
     input.focus();
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }));
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }));
+    });
     expect(useAppStore.getState().commandPaletteOpen).toBe(true);
     document.body.removeChild(input);
   });
