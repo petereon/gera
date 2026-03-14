@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
 import gera.service.tasks as svc
 from gera.repository import Repository

@@ -25,8 +25,8 @@ vi.mock("../api", () => ({
 
 // MDXEditor imports CSS files and uses browser-only APIs; stub the whole
 // package so we can test the surrounding NoteEditor logic in jsdom.
-vi.mock("@mdxeditor/editor", () => {
-  const React = require("react");
+vi.mock("@mdxeditor/editor", async () => {
+  const React = await import("react");
   const MDXEditor = React.forwardRef(
     (
       props: { markdown: string; onChange?: (v: string) => void },
@@ -112,7 +112,6 @@ describe("NoteEditor — smoke", () => {
 describe("BUG-007 — scroll position preservation", () => {
   it("preserves scrollTop when a checkbox mousedown fires (existing behaviour)", async () => {
     renderEditor();
-    const container = document.querySelector(".note-editor") as HTMLElement;
     const scrollable = document.querySelector(
       ".mdxeditor-root-contenteditable"
     ) as HTMLElement;

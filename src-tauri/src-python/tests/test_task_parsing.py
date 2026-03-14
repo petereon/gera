@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from gera.repository import Repository
 
@@ -12,7 +11,6 @@ def parse(text: str, source_file: str = "tasks.md"):
     """Call Repository._parse_tasks_from_markdown without a full repo."""
     # We need a Repository instance only for its method; we pass a dummy path
     # that need not exist since _parse_tasks_from_markdown does no I/O.
-    from pathlib import Path
     r = Repository.__new__(Repository)
     return r._parse_tasks_from_markdown(text, source_file=source_file)
 

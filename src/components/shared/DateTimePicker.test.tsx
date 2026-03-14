@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, within, act } from "@testing-library/react";
+import { render, screen, act } from "@testing-library/react";
 import { fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DateTimePicker } from "./DateTimePicker";
@@ -11,10 +11,6 @@ function renderPicker(props: Partial<React.ComponentProps<typeof DateTimePicker>
   const onChange = vi.fn();
   render(<DateTimePicker value="" onChange={onChange} {...props} />);
   return { onChange };
-}
-
-async function openPopover() {
-  await userEvent.click(screen.getByRole("button", { name: /select date|mar|jan|feb|apr|may|jun|jul|aug|sep|oct|nov|dec/i }));
 }
 
 describe("DateTimePicker", () => {

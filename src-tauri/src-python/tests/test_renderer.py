@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from gera.renderer import RenderedDocument, extract_title, render, render_body
 
