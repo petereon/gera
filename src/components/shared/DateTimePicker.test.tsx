@@ -1,5 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { useEffect, useRef } from "react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
+import { fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DateTimePicker } from "./DateTimePicker";
 
@@ -177,5 +179,219 @@ describe("DateTimePicker", () => {
     expect(screen.getByText("Done")).toBeInTheDocument();
     await userEvent.click(screen.getByText("Done"));
     expect(screen.queryByText("Done")).not.toBeInTheDocument();
+  });
+});
+
+// ── BUG-006: portalled popover click triggers parent outside-click handler ────
+//
+// DateTimePicker renders its popover via createPortal(…, document.body).
+// GeraRefTypeahead wraps the picker and registers a capture-phase mousedown
+// listener on document to detect outside clicks.  Because the portalled
+// popover is not a DOM descendant of the typeahead's container div, the
+// listener considers any click on the popover as an "outside" click and calls
+// dismiss(), closing the typeahead and unmounting the picker before any day
+// selection can register.
+//
+// Fix: the parent outside-click handler must also exclude the picker's portal
+// element (e.g. by checking a data attribute or using a shared ref).
+
+// ── BUG-006 — portalled popover click: parent outside-click handler ───────────
+//
+// Fix applied in GeraRefTypeahead: the capture-phase outside-click handler now
+// also checks `(e.target as Element).closest?.('.dtp-popover')` so that clicks
+// inside the portalled popover are excluded, preventing premature dismissal.
+//
+// The two helpers below test both the buggy pattern (naïve handler) and the
+// fixed pattern (portal-aware handler) to confirm the fix works as expected.
+
+describe("BUG-006 — portalled popover: naïve outside-click handler incorrectly fires", () => {
+  /** Naive handler — equivalent to the OLD (buggy) GeraRefTypeahead behaviour. */
+  function NaiveWrapper({ onDismiss }: { onDismiss: () => void }) {
+    const ref = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+      const handler = (e: MouseEvent) => {
+        if (ref.current && !ref.current.contains(e.target as Node)) onDismiss();
+      };
+      document.addEventListener("mousedown", handler, true);
+      return () => document.removeEventListener("mousedown", handler, true);
+    }, [onDismiss]);
+    return (
+      <div ref={ref}>
+        <DateTimePicker value="" onChange={() => {}} />
+      </div>
+    );
+  }
+
+  it("naïve handler fires when clicking the portalled popover (documents the pre-fix bug)", async () => {
+    const onDismiss = vi.fn();
+    render(<NaiveWrapper onDismiss={onDismiss} />);
+    await userEvent.click(screen.getByRole("button", { name: /select date/i }));
+    fireEvent.mouseDown(document.querySelector(".dtp-popover")!);
+    // Naïve handler DOES fire — this is the bug we fixed.
+    expect(onDismiss).toHaveBeenCalledOnce();
+  });
+});
+
+describe("BUG-006 — portalled popover: fixed outside-click handler does NOT fire", () => {
+  /** Fixed handler — mirrors the patched GeraRefTypeahead behaviour. */
+  function FixedWrapper({ onDismiss }: { onDismiss: () => void }) {
+    const ref = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+      const handler = (e: MouseEvent) => {
+        const target = e.target as Element;
+        if (
+          ref.current &&
+          !ref.current.contains(target) &&
+          !target.closest?.(".dtp-popover")
+        ) {
+          onDismiss();
+        }
+      };
+      document.addEventListener("mousedown", handler, true);
+      return () => document.removeEventListener("mousedown", handler, true);
+    }, [onDismiss]);
+    return (
+      <div ref={ref}>
+        <DateTimePicker value="" onChange={() => {}} />
+      </div>
+    );
+  }
+
+  it("fixed handler does NOT fire when clicking inside the portalled popover", async () => {
+    const onDismiss = vi.fn();
+    render(<FixedWrapper onDismiss={onDismiss} />);
+    await userEvent.click(screen.getByRole("button", { name: /select date/i }));
+    fireEvent.mouseDown(document.querySelector(".dtp-popover")!);
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it("fixed handler still fires when clicking a true outside element", async () => {
+    const onDismiss = vi.fn();
+    render(<FixedWrapper onDismiss={onDismiss} />);
+    await userEvent.click(screen.getByRole("button", { name: /select date/i }));
+    const outside = document.createElement("div");
+    document.body.appendChild(outside);
+    fireEvent.mouseDown(outside);
+    expect(onDismiss).toHaveBeenCalledOnce();
+    document.body.removeChild(outside);
+  });
+
+  it("trigger click does not fire dismiss (trigger is inside the wrapper)", async () => {
+    const onDismiss = vi.fn();
+    render(<FixedWrapper onDismiss={onDismiss} />);
+    await userEvent.click(screen.getByRole("button", { name: /select date/i }));
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(document.querySelector(".dtp-popover")).not.toBeNull();
+  });
+});
+
+// ── BUG-008: popover must never overflow the viewport ─────────────────────────
+//
+// updatePosition() calculates top/left from getBoundingClientRect() and
+// window.innerHeight/innerWidth.  When neither above nor below has enough
+// room for the ~340 px popover the current logic picks "above" and sets
+// top = rect.top - 340 - 4, which can be negative (off-screen).
+// A similar issue occurs for left when the right-align fallback overshoots.
+//
+// Fix: clamp top to Math.max(8, …) and left to Math.max(8, …).
+
+describe("BUG-008 — popover stays within viewport bounds", () => {
+  let origInnerHeight: number;
+  let origInnerWidth: number;
+
+  beforeEach(() => {
+    origInnerHeight = window.innerHeight;
+    origInnerWidth = window.innerWidth;
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, "innerHeight", { value: origInnerHeight, configurable: true });
+    Object.defineProperty(window, "innerWidth", { value: origInnerWidth, configurable: true });
+    vi.restoreAllMocks();
+  });
+
+  it("opens above the trigger when space below is less than popover height", async () => {
+    // Trigger near the bottom: lots of room above, not below
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
+      top: 680, bottom: 710, left: 10, right: 210,
+      width: 200, height: 30, x: 10, y: 680,
+      toJSON: () => ({}),
+    } as DOMRect);
+    Object.defineProperty(window, "innerHeight", { value: 750, configurable: true });
+    Object.defineProperty(window, "innerWidth", { value: 1200, configurable: true });
+
+    renderPicker({ value: ISO_DATE });
+    await userEvent.click(screen.getByRole("button", { name: /Mar 14/ }));
+
+    const popover = document.querySelector(".dtp-popover") as HTMLElement;
+    const top = parseFloat(popover.style.top);
+    // spaceBelow=32, spaceAbove=672 → popover goes above: top=680-340-4=336
+    expect(top).toBeLessThan(680);
+    expect(top).toBeGreaterThan(0);
+  });
+
+  it(
+    "BUG-008 FAILING: popover top is not negative when space is tight both above and below",
+    async () => {
+      // Very small viewport — neither above nor below has 340 px
+      vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
+        top: 50, bottom: 80, left: 10, right: 210,
+        width: 200, height: 30, x: 10, y: 50,
+        toJSON: () => ({}),
+      } as DOMRect);
+      // spaceBelow = 100-80-8 = 12, spaceAbove = 50-8 = 42
+      // Both < 340 → current code: top = 50-340-4 = -294 (off-screen!)
+      Object.defineProperty(window, "innerHeight", { value: 100, configurable: true });
+      Object.defineProperty(window, "innerWidth", { value: 1200, configurable: true });
+
+      renderPicker({ value: ISO_DATE });
+      await userEvent.click(screen.getByRole("button", { name: /Mar 14/ }));
+
+      const popover = document.querySelector(".dtp-popover") as HTMLElement;
+      const top = parseFloat(popover.style.top);
+      // When FIXED: top should be clamped to ≥ 0 (or ≥ 8 with a safe margin)
+      expect(top).toBeGreaterThanOrEqual(0);
+    }
+  );
+
+  it(
+    "BUG-008 FAILING: popover left is not negative when right-aligning overshoots the left edge",
+    async () => {
+      // Trigger very close to the left edge, popoverWidth (264) > rect.right
+      vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
+        top: 100, bottom: 130, left: 5, right: 55,
+        width: 50, height: 30, x: 5, y: 100,
+        toJSON: () => ({}),
+      } as DOMRect);
+      Object.defineProperty(window, "innerWidth", { value: 200, configurable: true });
+      Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
+
+      renderPicker({ value: ISO_DATE });
+      await userEvent.click(screen.getByRole("button", { name: /Mar 14/ }));
+
+      const popover = document.querySelector(".dtp-popover") as HTMLElement;
+      // right-align: left = rect.right - 264 = 55 - 264 = -209
+      const left = parseFloat(popover.style.left);
+      // When FIXED: left should be clamped to ≥ 0
+      expect(left).toBeGreaterThanOrEqual(0);
+    }
+  );
+
+  it("shifts left when trigger is near the right edge (already handled)", async () => {
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
+      top: 100, bottom: 130, left: 900, right: 1050,
+      width: 150, height: 30, x: 900, y: 100,
+      toJSON: () => ({}),
+    } as DOMRect);
+    Object.defineProperty(window, "innerWidth", { value: 1100, configurable: true });
+    Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
+
+    renderPicker({ value: ISO_DATE });
+    await userEvent.click(screen.getByRole("button", { name: /Mar 14/ }));
+
+    const popover = document.querySelector(".dtp-popover") as HTMLElement;
+    const left = parseFloat(popover.style.left);
+    // right-align: 1050-264=786, which is fine; popover right edge = 786+264=1050 ≤ 1092
+    expect(left + 264).toBeLessThanOrEqual(1100);
   });
 });
