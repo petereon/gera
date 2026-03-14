@@ -8,7 +8,7 @@ import pytest
 
 from gera.errors import InvalidDataDirectoryError
 from gera.filesystem import init_data_directory, verify_structure
-from gera.paths import EVENTS_FILE, NOTES_DIR, PROJECTS_DIR, REQUIRED_DIRS, TASKS_FILE
+from gera.paths import REQUIRED_DIRS
 
 
 class TestInitDataDirectory:

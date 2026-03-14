@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from gera.frontmatter import parse_frontmatter, serialize_frontmatter
 

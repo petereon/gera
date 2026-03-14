@@ -163,7 +163,7 @@ describe("TaskItem — toggle", () => {
   it("calls toggleTask when Space is pressed on the task item", async () => {
     const task = makeTask({ source_file: "tasks.md", line_number: 3 });
     renderItem(task);
-    screen.getByText("Review slides").closest(".task-item")!.focus();
+    (screen.getByText("Review slides").closest(".task-item")! as HTMLElement).focus();
     await userEvent.keyboard(" ");
     expect(mockToggleTask).toHaveBeenCalledOnce();
   });

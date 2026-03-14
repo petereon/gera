@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-import pytest
-from pydantic import ValidationError
 
 from gera.entities import EventEntity, EventMetadata, NoteEntity, ProjectEntity, TaskEntity
 from gera.entities.time_reference import TimeReference

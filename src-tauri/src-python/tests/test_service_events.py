@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-import pytest
 
 import gera.service.events as svc
 from gera.entities import EventEntity, EventMetadata

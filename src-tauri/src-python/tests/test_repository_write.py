@@ -60,7 +60,7 @@ class TestCreateTask:
     def test_multiple_tasks_each_on_own_line(self, data_dir: Path, repo: Repository):
         repo.create_task("First")
         repo.create_task("Second")
-        lines = [l for l in tasks_file_content(data_dir).splitlines() if l.strip()]
+        lines = [ln for ln in tasks_file_content(data_dir).splitlines() if ln.strip()]
         assert len(lines) == 2
 
     def test_empty_text_raises(self, repo: Repository):
