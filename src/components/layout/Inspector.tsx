@@ -10,6 +10,7 @@ import {
   CloseIcon,
 } from '../icons/Icons';
 import { Checkbox } from '../shared/Checkbox';
+import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { NoteTile } from '../notes/NoteTile';
 import { cleanTaskDisplay } from '../../utils/taskFormatting';
 import { formatEventDate, formatEventTime } from '../../utils/dateFormatting';
@@ -88,7 +89,7 @@ export function Inspector({ isVisible, isModal = false }: InspectorProps) {
         />
       </div>
 
-      {editingEvent && selectedEvent && (
+      {editingEvent && selectedEvent && selectedEvent.metadata?.source_platform !== 'google_calendar' && (
         <EventEditModal event={selectedEvent} onClose={() => setEditingEvent(false)} />
       )}
     </>
@@ -119,6 +120,7 @@ function InspectorContent({
   setReturnView: ReturnType<typeof useAppStore.getState>['setReturnView'];
   closeButton?: React.ReactNode;
 }) {
+  const [editProhibited, setEditProhibited] = useState(false);
   return (
     <>
       {/* Event Details */}
@@ -134,7 +136,13 @@ function InspectorContent({
               <button
                 className="inspector-edit-btn"
                 title="Edit event"
-                onClick={() => setEditingEvent(true)}
+                onClick={() => {
+                  if (selectedEvent?.metadata?.source_platform === 'google_calendar') {
+                    setEditProhibited(true);
+                  } else {
+                    setEditingEvent(true);
+                  }
+                }}
               >
                 <PencilIcon />
               </button>
@@ -173,6 +181,16 @@ function InspectorContent({
             </div>
 
             {/* Join Video Call intentionally hidden */}
+            {editProhibited && selectedEvent && (
+              <ConfirmDialog
+                title="Edit Disabled"
+                message="This event was imported from Google Calendar and must be edited there."
+                confirmLabel="OK"
+                cancelLabel="Close"
+                onConfirm={() => setEditProhibited(false)}
+                onCancel={() => setEditProhibited(false)}
+              />
+            )}
           </div>
         ) : (
           <div className="inspector-content">
@@ -219,7 +237,7 @@ function InspectorContent({
         </div>
       )}
 
-      {editingEvent && selectedEvent && (
+      {editingEvent && selectedEvent && selectedEvent.metadata?.source_platform !== 'google_calendar' && (
         <EventEditModal event={selectedEvent} onClose={() => setEditingEvent(false)} />
       )}
     </>

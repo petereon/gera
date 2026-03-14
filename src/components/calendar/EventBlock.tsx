@@ -4,6 +4,7 @@ import { useAppStore } from '../../stores/useAppStore';
 import { calculateEventStyle } from '../../utils/eventPositioning';
 import { formatEventTime } from '../../utils/dateFormatting';
 import { EventEditModal } from './EventEditModal';
+import { ConfirmDialog } from '../shared/ConfirmDialog';
 
 interface EventBlockProps {
   event: EventEntity;
@@ -14,6 +15,7 @@ export function EventBlock({ event, notes }: EventBlockProps) {
   const setSelectedEvent = useAppStore((state) => state.setSelectedEvent);
   const setSelectedNote = useAppStore((state) => state.setSelectedNote);
   const [editing, setEditing] = useState(false);
+  const [editProhibited, setEditProhibited] = useState(false);
   
   const eventStyle = calculateEventStyle(event);
   // Only show time if the block is tall enough to fit a second line (~44px = ~30min)
@@ -28,6 +30,11 @@ export function EventBlock({ event, notes }: EventBlockProps) {
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    // Prevent editing of events imported from external calendars (e.g. Google)
+    if (event.metadata?.source_platform === 'google_calendar') {
+      setEditProhibited(true);
+      return;
+    }
     setEditing(true);
   };
 
@@ -69,6 +76,17 @@ export function EventBlock({ event, notes }: EventBlockProps) {
         <EventEditModal
           event={event}
           onClose={() => setEditing(false)}
+        />
+      )}
+
+      {editProhibited && (
+        <ConfirmDialog
+          title="Edit Disabled"
+          message="This event was imported from Google Calendar and must be edited there."
+          confirmLabel="OK"
+          cancelLabel="Cancel"
+          onConfirm={() => setEditProhibited(false)}
+          onCancel={() => setEditProhibited(false)}
         />
       )}
     </>
