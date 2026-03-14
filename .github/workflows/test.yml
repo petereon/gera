@@ -36,7 +36,7 @@ jobs:
 
       - name: Lint (ruff)
         working-directory: src-tauri
-        run: uv run --extra test ruff check .
+        run: uvx ruff check .
 
       - name: Run tests
         working-directory: src-tauri
