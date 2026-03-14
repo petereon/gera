@@ -1,0 +1,197 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { renderHook } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import React from "react";
+import { useKeyboard } from "./useKeyboard";
+import { useAppStore } from "../stores/useAppStore";
+import { useCalendarStore } from "../stores/useCalendarStore";
+
+// ── Mocks ─────────────────────────────────────────────────────────────────────
+
+const mockNavigate = vi.fn();
+
+vi.mock("react-router-dom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router-dom")>();
+  return { ...actual, useNavigate: () => mockNavigate };
+});
+
+// Use real keybindings so default shortcuts (⌘K, ⌘1, etc.) work as expected.
+// For the custom-override test we temporarily override localStorage.
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function fire(key: string, opts: KeyboardEventInit = {}) {
+  document.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, ...opts }));
+}
+
+function renderKB(initialPath = "/tasks") {
+  return renderHook(() => useKeyboard(), {
+    wrapper: ({ children }) =>
+      React.createElement(MemoryRouter, { initialEntries: [initialPath] }, children),
+  });
+}
+
+const initialAppState = useAppStore.getState();
+const initialCalendarState = useCalendarStore.getState();
+
+beforeEach(() => {
+  useAppStore.setState(initialAppState, true);
+  useCalendarStore.setState(initialCalendarState, true);
+  mockNavigate.mockClear();
+  // Remove any persisted keybinding override between tests
+  try { localStorage.removeItem("keybinding-overrides"); } catch {}
+});
+
+// ── Command palette ────────────────────────────────────────────────────────────
+
+describe("useKeyboard — command palette", () => {
+  it("⌘K opens the command palette", () => {
+    renderKB();
+    fire("k", { metaKey: true });
+    expect(useAppStore.getState().commandPaletteOpen).toBe(true);
+  });
+
+  it("⌘K fires even when focus is inside a text input", () => {
+    renderKB();
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }));
+    expect(useAppStore.getState().commandPaletteOpen).toBe(true);
+    document.body.removeChild(input);
+  });
+
+  it("Escape closes the command palette when it is open", () => {
+    useAppStore.setState({ commandPaletteOpen: true });
+    renderKB();
+    fire("Escape");
+    expect(useAppStore.getState().commandPaletteOpen).toBe(false);
+  });
+
+  it("Escape does nothing to commandPaletteOpen when palette is already closed", () => {
+    useAppStore.setState({ commandPaletteOpen: false });
+    renderKB();
+    fire("Escape");
+    expect(useAppStore.getState().commandPaletteOpen).toBe(false);
+  });
+});
+
+// ── Navigation shortcuts ───────────────────────────────────────────────────────
+
+describe("useKeyboard — navigation", () => {
+  it("⌘1 navigates to /tasks", () => {
+    renderKB();
+    fire("1", { metaKey: true });
+    expect(mockNavigate).toHaveBeenCalledWith("/tasks");
+  });
+
+  it("⌘2 navigates to /notes", () => {
+    renderKB();
+    fire("2", { metaKey: true });
+    expect(mockNavigate).toHaveBeenCalledWith("/notes");
+  });
+
+  it("⌘3 navigates to /calendar", () => {
+    renderKB();
+    fire("3", { metaKey: true });
+    expect(mockNavigate).toHaveBeenCalledWith("/calendar");
+  });
+
+  it("⌘, opens settings", () => {
+    renderKB();
+    fire(",", { metaKey: true });
+    expect(useAppStore.getState().settingsOpen).toBe(true);
+  });
+
+  it("⌘F triggers search focus", () => {
+    const spy = vi.spyOn(useAppStore.getState(), "triggerSearchFocus");
+    renderKB();
+    fire("f", { metaKey: true });
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("/ triggers search focus", () => {
+    const spy = vi.spyOn(useAppStore.getState(), "triggerSearchFocus");
+    renderKB();
+    fire("/");
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+});
+
+// ── Context-sensitive create (n key) ─────────────────────────────────────────
+
+describe("useKeyboard — n key creates in context", () => {
+  it("n on /tasks sets pendingCreate to 'task'", () => {
+    renderKB("/tasks");
+    fire("n");
+    expect(useAppStore.getState().pendingCreate).toBe("task");
+  });
+
+  it("n on /notes sets pendingCreate to 'note'", () => {
+    renderKB("/notes");
+    fire("n");
+    expect(useAppStore.getState().pendingCreate).toBe("note");
+  });
+
+  it("n on /calendar sets pendingCreate to 'event'", () => {
+    renderKB("/calendar");
+    fire("n");
+    expect(useAppStore.getState().pendingCreate).toBe("event");
+  });
+});
+
+// ── Input suppression ─────────────────────────────────────────────────────────
+
+describe("useKeyboard — input suppression", () => {
+  it("n does not fire setPendingCreate when focus is in an <input>", () => {
+    renderKB("/tasks");
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "n", bubbles: true }));
+    expect(useAppStore.getState().pendingCreate).toBeNull();
+    document.body.removeChild(input);
+  });
+
+  it("n does not fire when focus is in a <textarea>", () => {
+    renderKB("/tasks");
+    const ta = document.createElement("textarea");
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.dispatchEvent(new KeyboardEvent("keydown", { key: "n", bubbles: true }));
+    expect(useAppStore.getState().pendingCreate).toBeNull();
+    document.body.removeChild(ta);
+  });
+
+  it("navigation shortcuts are suppressed when a modal-backdrop is present", () => {
+    renderKB();
+    const backdrop = document.createElement("div");
+    backdrop.className = "modal-backdrop";
+    document.body.appendChild(backdrop);
+    fire("1", { metaKey: true });
+    expect(mockNavigate).not.toHaveBeenCalled();
+    document.body.removeChild(backdrop);
+  });
+});
+
+// ── Custom keybinding override ────────────────────────────────────────────────
+
+// The custom-override test requires localStorage.setItem, which is not available in the
+// Tauri jsdom mock (the mock provides no-op getItem/removeItem but not setItem).
+// Skipped until the test environment exposes a writable localStorage.
+
+describe("useKeyboard — custom keybinding override", () => {
+  it.skip("uses overridden key when localStorage has a saved override", () => {
+    // Persist an override for goToTasks before the hook mounts
+    localStorage.setItem("keybinding-overrides", JSON.stringify({ goToTasks: "⌘9" }));
+    renderKB();
+    // Default ⌘1 should NOT navigate (overridden away)
+    fire("1", { metaKey: true });
+    expect(mockNavigate).not.toHaveBeenCalledWith("/tasks");
+    // Custom ⌘9 SHOULD navigate
+    fire("9", { metaKey: true });
+    expect(mockNavigate).toHaveBeenCalledWith("/tasks");
+  });
+});
