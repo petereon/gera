@@ -89,6 +89,13 @@
   }
   .nav-cta:hover { background: var(--blue-mid) !important; }
 
+  @media (max-width: 600px) {
+    nav { padding: 0 14px; gap: 10px; }
+    .nav-badge { display: none; }
+    .nav-link:not(.nav-cta) { display: none; }
+    .nav-brand-name { font-size: 15px; }
+  }
+
   /* ── HERO ──────────────────────────────────── */
   .hero {
     min-height: 100vh;
@@ -302,8 +309,11 @@
     display: grid; grid-template-columns: 1fr 1fr;
     gap: 80px; align-items: center;
   }
+  .local-section { padding: 100px 48px; }
+
   @media (max-width: 760px) {
     .local { grid-template-columns: 1fr; gap: 48px; }
+    .local-section { padding: 60px 20px; }
   }
 
   .local-text .section-eyebrow { margin-bottom: 12px; }
@@ -743,8 +753,8 @@
 </section>
 
 <!-- ── LOCAL FIRST ── -->
-<section style="padding: 100px 48px;">
-  <div class="local" style="padding: 0; max-width: 1040px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center;">
+<section class="local-section">
+  <div class="local" style="padding: 0;">
     <div class="local-text">
       <p class="section-eyebrow">Local-first architecture</p>
       <h2 class="section-h" style="max-width: 380px; margin-bottom: 24px;">Your data, in<br><em>plain text, forever.</em></h2>
@@ -936,12 +946,12 @@
     <p>Free and open source. Your files, your rules.</p>
     <div style="display:flex; flex-wrap:wrap; gap:12px; justify-content:center; position:relative; margin-bottom: 28px;">
       <!-- macOS — single universal DMG -->
-      <a href="https://github.com/petereon/gera/releases/latest/download/gera.dmg" class="btn-white">
+      <a href="#" data-artifact="macos-dmg" class="btn-white">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1A4D82" stroke-width="2" stroke-linecap="round"><path d="M12 3v13M8 13l4 4 4-4"/><path d="M4 20h16"/></svg>
         macOS <span style="font-weight:400; opacity:0.6; font-size:12px; margin-left:2px;">Apple Silicon</span>
       </a>
       <!-- Windows — direct EXE installer -->
-      <a href="https://github.com/petereon/gera/releases/latest/download/gera_0.1.0_x64-setup.exe" class="btn-ghost">
+      <a href="#" data-artifact="windows-exe" class="btn-ghost">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v13M8 13l4 4 4-4"/><path d="M4 20h16"/></svg>
         Windows <span style="font-weight:400; opacity:0.5; font-size:12px; margin-left:2px;">x64</span>
       </a>
@@ -953,10 +963,10 @@
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div class="dl-dropdown">
-          <a href="https://github.com/petereon/gera/releases/latest/download/gera_0.1.0_amd64.deb">
+          <a href="#" data-artifact="linux-deb-amd64">
             x86_64 <span>amd64</span>
           </a>
-          <a href="https://github.com/petereon/gera/releases/latest/download/gera_0.1.0_arm64.deb">
+          <a href="#" data-artifact="linux-deb-arm64">
             ARM64 <span>arm64</span>
           </a>
         </div>
@@ -969,10 +979,10 @@
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div class="dl-dropdown">
-          <a href="https://github.com/petereon/gera/releases/latest/download/gera-0.1.0-1.x86_64.rpm">
+          <a href="#" data-artifact="linux-rpm-x86_64">
             x86_64 <span>x86_64</span>
           </a>
-          <a href="https://github.com/petereon/gera/releases/latest/download/gera-0.1.0-1.aarch64.rpm">
+          <a href="#" data-artifact="linux-rpm-aarch64">
             ARM64 <span>aarch64</span>
           </a>
         </div>
@@ -1018,6 +1028,46 @@ document.addEventListener('click', function(e) {
     document.querySelectorAll('.dl-dropdown').forEach(d => d.style.display = 'none');
   }
 });
+
+// Resolve download URLs from GitHub Releases API.
+// Uses the latest release if it already has artifacts; falls back to the
+// previous release if the build is still running (assets list is empty).
+(async function () {
+  const patterns = {
+    'macos-dmg':         /^gera\.dmg$/i,
+    'windows-exe':       /gera.*setup.*\.exe$/i,
+    'linux-deb-amd64':   /gera.*amd64\.deb$/i,
+    'linux-deb-arm64':   /gera.*arm64\.deb$/i,
+    'linux-rpm-x86_64':  /gera.*x86_64\.rpm$/i,
+    'linux-rpm-aarch64': /gera.*aarch64\.rpm$/i,
+  };
+
+  try {
+    const res = await fetch(
+      'https://api.github.com/repos/petereon/gera/releases?per_page=2',
+      { headers: { Accept: 'application/vnd.github+json' } }
+    );
+    if (!res.ok) return;
+    const releases = await res.json();
+    if (!Array.isArray(releases) || releases.length === 0) return;
+
+    // Prefer the latest release; fall back to the previous one if it has no
+    // assets yet (build still in progress).
+    const latest = releases[0];
+    const prev   = releases[1] ?? null;
+    const source = latest.assets?.length > 0 ? latest : prev;
+    if (!source) return;
+
+    document.querySelectorAll('[data-artifact]').forEach(el => {
+      const pat = patterns[el.dataset.artifact];
+      if (!pat) return;
+      const asset = source.assets.find(a => pat.test(a.name));
+      if (asset) el.href = asset.browser_download_url;
+    });
+  } catch (_) {
+    // Silently ignore — links stay as "#" and the user can try GitHub directly.
+  }
+})();
 </script>
 </body>
 </html>
