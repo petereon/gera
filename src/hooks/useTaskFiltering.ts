@@ -102,14 +102,14 @@ export function useTaskFiltering(
     [tasks]
   );
 
-  // Events that have tasks, sorted by time
-  const upcomingEventsWithTasks = useMemo(
-    () =>
-      events
-        .filter((ev) => (tasksByEventId.get(ev.id)?.length ?? 0) > 0)
-        .sort((a, b) => new Date(a.from_).getTime() - new Date(b.from_).getTime()),
-    [events, tasksByEventId]
-  );
+  // Events that have tasks, future only (past events excluded from grouped view), sorted by time
+  const upcomingEventsWithTasks = useMemo(() => {
+    const now = Date.now();
+    return events
+      .filter((ev) => (tasksByEventId.get(ev.id)?.length ?? 0) > 0)
+      .filter((ev) => new Date(ev.to).getTime() >= now)
+      .sort((a, b) => new Date(a.from_).getTime() - new Date(b.from_).getTime());
+  }, [events, tasksByEventId]);
 
   // Apply search filter to other tasks — scheduled (by deadline) first, unscheduled last
   const filteredOtherTasks = useMemo(() => {
@@ -188,24 +188,36 @@ export function useTaskFiltering(
     });
   }, [filteredOtherTasks, backendResults]);
 
-  // Timeline: split into scheduled (sorted by effective time) and unscheduled
-  const { timelineScheduledTasks, timelineUnscheduledTasks } = useMemo(() => {
+  // Timeline: split into overdue, scheduled, and unscheduled.
+  // When not searching: completed past tasks are hidden; incomplete past tasks go to overdue.
+  // When searching: all matching tasks appear in the normal scheduled list.
+  const { timelineOverdueTasks, timelineScheduledTasks, timelineUnscheduledTasks } = useMemo(() => {
+    const now = Date.now();
     const allFiltered = tasks.filter((t) => filterTask(t, search));
     const merged = backendResults.length > 0
       ? deduplicate([...allFiltered, ...backendResults], getTaskDedupeKey)
       : allFiltered;
 
+    const overdue: TaskEntity[] = [];
     const scheduled: TaskEntity[] = [];
     const unscheduled: TaskEntity[] = [];
 
     for (const task of merged) {
-      if (getEffectiveTimeMs(task, events) !== null) scheduled.push(task);
-      else unscheduled.push(task);
+      const effectiveTime = getEffectiveTimeMs(task, events);
+      if (effectiveTime === null) {
+        unscheduled.push(task);
+      } else if (!search && effectiveTime < now) {
+        if (!task.completed) overdue.push(task);
+        // completed past tasks silently dropped when not searching
+      } else {
+        scheduled.push(task);
+      }
     }
 
+    overdue.sort((a, b) => getEffectiveTimeMs(a, events)! - getEffectiveTimeMs(b, events)!);
     scheduled.sort((a, b) => getEffectiveTimeMs(a, events)! - getEffectiveTimeMs(b, events)!);
 
-    return { timelineScheduledTasks: scheduled, timelineUnscheduledTasks: unscheduled };
+    return { timelineOverdueTasks: overdue, timelineScheduledTasks: scheduled, timelineUnscheduledTasks: unscheduled };
   }, [tasks, events, search, filterTask, backendResults]);
 
   // Helper to get tasks for a specific event
@@ -217,6 +229,7 @@ export function useTaskFiltering(
   return {
     filteredEventsWithTasks,
     filteredOtherTasks: mergedOtherTasks,
+    timelineOverdueTasks,
     timelineScheduledTasks,
     timelineUnscheduledTasks,
     getTasksForEvent,

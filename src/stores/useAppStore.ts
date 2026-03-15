@@ -55,6 +55,10 @@ export interface AppStore {
   // Return-to navigation (e.g. open note from calendar, return on close)
   returnView: string | null;
   setReturnView: (view: string | null) => void;
+
+  // Temporarily highlight an event block in the calendar
+  highlightEventId: string | null;
+  setHighlightEventId: (id: string | null) => void;
 }
 
 export const useAppStore = create<AppStore>((set) => ({
@@ -111,4 +115,8 @@ export const useAppStore = create<AppStore>((set) => ({
   // Return-to navigation
   returnView: null,
   setReturnView: (returnView) => set({ returnView }),
+
+  // Temporarily highlight an event block in the calendar
+  highlightEventId: null,
+  setHighlightEventId: (highlightEventId) => set({ highlightEventId }),
 }));

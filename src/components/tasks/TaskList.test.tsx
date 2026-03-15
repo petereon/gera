@@ -53,6 +53,7 @@ function makeEvent(id = "evt-1", name = "Standup"): EventEntity {
 const emptyProps = {
   filteredEventsWithTasks: [],
   filteredOtherTasks: [],
+  timelineOverdueTasks: [],
   timelineScheduledTasks: [],
   timelineUnscheduledTasks: [],
   getTasksForEvent: (_id: string) => [],
@@ -71,6 +72,7 @@ describe("TaskList — timeline mode", () => {
     render(
       <TaskList
         {...emptyProps}
+        timelineOverdueTasks={[]}
         timelineScheduledTasks={[makeTask("Buy milk"), makeTask("Send email")]}
       />
     );

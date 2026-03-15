@@ -317,6 +317,40 @@
   color: var(--text-primary);
 }
 
+.day-header--today .day-number {
+  background: var(--accent-blue);
+  color: white;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Current time indicator — line segments inside each cell of the current hour row */
+.current-time-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent-red, #ef4444);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.current-time-dot {
+  position: absolute;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-red, #ef4444);
+  pointer-events: none;
+  z-index: 5;
+  transform: translateY(-50%);
+}
+
 .all-day-chips {
   display: flex;
   flex-direction: column;
@@ -354,6 +388,7 @@
   min-height: 56px;
   box-sizing: border-box;
   vertical-align: top;
+  position: relative;
 }
 
 .grid-cell {
@@ -387,6 +422,16 @@
 .event-block:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
+}
+
+@keyframes event-highlight-fade {
+  0%   { box-shadow: 0 0 0 3px #f59e0b; }
+  70%  { box-shadow: 0 0 0 3px #f59e0b; }
+  100% { box-shadow: 0 0 0 3px transparent; }
+}
+
+.event-block--highlight {
+  animation: event-highlight-fade 2s ease-out forwards;
 }
 
 .event-block .event-title {
@@ -550,6 +595,7 @@
   overflow: hidden; /* each child scrolls independently */
   gap: 0;
 }
+
 
 .timeline-scheduled-pane {
   flex: 2;
@@ -1043,6 +1089,21 @@
 .metadata-chip--project {
   background-color: var(--chip-project-bg);
   color: var(--chip-project-text);
+}
+
+.metadata-chip-navigate {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.metadata-chip-navigate:hover {
+  text-decoration: underline;
 }
 
 .metadata-chip-remove {

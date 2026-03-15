@@ -4,12 +4,14 @@ import { EventTaskGroup, TaskGroup } from './TaskGroup';
 import { EmptyState } from '../shared/EmptyState';
 import { TaskItem } from './TaskItem';
 import { SearchInput } from '../shared/SearchInput';
+import { ChevronRightIcon, ChevronDownIcon } from '../icons/Icons';
 
 export type TasksViewMode = 'grouped' | 'timeline';
 
 interface TaskListProps {
   filteredEventsWithTasks: EventEntity[];
   filteredOtherTasks: TaskEntity[];
+  timelineOverdueTasks: TaskEntity[];
   timelineScheduledTasks: TaskEntity[];
   timelineUnscheduledTasks: TaskEntity[];
   getTasksForEvent: (eventId: string) => TaskEntity[];
@@ -50,23 +52,48 @@ function UnscheduledTasksBlock({ tasks }: { tasks: TaskEntity[] }) {
   );
 }
 
+function OverdueBlock({ tasks }: { tasks: TaskEntity[] }) {
+  const [collapsed, setCollapsed] = useState(false);
+  return (
+    <div className="task-group task-group--overdue">
+      <button
+        className="task-group-header"
+        onClick={() => setCollapsed((c) => !c)}
+        aria-expanded={!collapsed}
+      >
+        <span className="task-group-chevron">
+          {collapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}
+        </span>
+        <span className="task-category" style={{ margin: 0 }}>Overdue</span>
+        <span className="task-group-count">{tasks.length}</span>
+      </button>
+      {!collapsed && tasks.map((task, i) => (
+        <TaskItem key={`${task.source_file}:${task.line_number}:${i}`} task={task} overdue />
+      ))}
+    </div>
+  );
+}
+
 export function TaskList({
   filteredEventsWithTasks,
   filteredOtherTasks,
+  timelineOverdueTasks,
   timelineScheduledTasks,
   timelineUnscheduledTasks,
   getTasksForEvent,
   viewMode,
 }: TaskListProps) {
   if (viewMode === 'timeline') {
+    const hasOverdue = timelineOverdueTasks.length > 0;
     const hasScheduled = timelineScheduledTasks.length > 0;
     const hasUnscheduled = timelineUnscheduledTasks.length > 0;
 
-    if (!hasScheduled && !hasUnscheduled) return <EmptyState message="No tasks yet" />;
+    if (!hasOverdue && !hasScheduled && !hasUnscheduled) return <EmptyState message="No tasks yet" />;
 
     return (
       <div className="tasks-list tasks-list--timeline">
         <div className="timeline-scheduled-pane">
+          {hasOverdue && <OverdueBlock tasks={timelineOverdueTasks} />}
           {hasScheduled ? (
             timelineScheduledTasks.map((task, i) => (
               <TaskItem key={`${task.source_file}:${task.line_number}:${i}`} task={task} />
