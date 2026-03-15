@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SearchInput } from "./SearchInput";
 
@@ -41,8 +41,15 @@ describe("SearchInput", () => {
     expect(screen.getByRole("textbox")).not.toHaveFocus();
   });
 
-  it("focuses the input when focusTrigger is a non-zero number", () => {
+  it("does not focus on mount even when focusTrigger is non-zero", () => {
     render(<SearchInput value="" onChange={vi.fn()} focusTrigger={1} />);
+    expect(screen.getByRole("textbox")).not.toHaveFocus();
+  });
+
+  it("focuses the input when focusTrigger increments after mount", () => {
+    const { rerender } = render(<SearchInput value="" onChange={vi.fn()} focusTrigger={0} />);
+    expect(screen.getByRole("textbox")).not.toHaveFocus();
+    act(() => { rerender(<SearchInput value="" onChange={vi.fn()} focusTrigger={1} />); });
     expect(screen.getByRole("textbox")).toHaveFocus();
   });
 });

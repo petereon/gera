@@ -78,14 +78,13 @@ describe("cleanTaskDisplay", () => {
     expect(cleanTaskDisplay(task)).toBe("Prep");
   });
 
-  it("does not strip event token when event_id has no resolved name", () => {
+  it("strips event token even when event_id has no resolved name", () => {
     const task = makeTask({
       text: "Task @evt-unknown",
       event_ids: ["evt-unknown"],
       resolved_event_names: {},
     });
-    // No resolved name → token left in place
-    expect(cleanTaskDisplay(task)).toContain("@evt-unknown");
+    expect(cleanTaskDisplay(task)).toBe("Task");
   });
 });
 

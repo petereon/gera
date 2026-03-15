@@ -16,9 +16,13 @@ export function SearchInput({
   focusTrigger,
 }: SearchInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const seenTrigger = useRef(focusTrigger ?? 0);
 
   useEffect(() => {
-    if (focusTrigger) inputRef.current?.focus();
+    if ((focusTrigger ?? 0) > seenTrigger.current) {
+      seenTrigger.current = focusTrigger ?? 0;
+      inputRef.current?.focus();
+    }
   }, [focusTrigger]);
 
   return (

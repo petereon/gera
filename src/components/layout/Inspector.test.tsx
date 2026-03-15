@@ -209,10 +209,11 @@ describe("Inspector — edit event", () => {
 // ── Linked notes ──────────────────────────────────────────────────────────────
 
 describe("Inspector — linked notes", () => {
-  it("hides the linked notes section when there are no linked notes", () => {
+  it("shows the linked notes section even when there are no linked notes", () => {
     useAppStore.setState({ selectedEvent: makeEvent(), notes: [] });
     renderInspector();
-    expect(screen.queryByText("LINKED NOTES")).not.toBeInTheDocument();
+    expect(screen.getByText("LINKED NOTES")).toBeInTheDocument();
+    expect(screen.getByText("No linked notes yet")).toBeInTheDocument();
   });
 
   it("shows LINKED NOTES section when notes link to the selected event", () => {
@@ -231,7 +232,7 @@ describe("Inspector — linked notes", () => {
       notes: [makeNote({ filename: "other.md", title: "Other Note", event_ids: ["evt-99"] })],
     });
     renderInspector();
-    expect(screen.queryByText("LINKED NOTES")).not.toBeInTheDocument();
+    expect(screen.getByText("LINKED NOTES")).toBeInTheDocument();
     expect(screen.queryByText("Other Note")).not.toBeInTheDocument();
   });
 
@@ -250,10 +251,11 @@ describe("Inspector — linked notes", () => {
 // ── Linked tasks ──────────────────────────────────────────────────────────────
 
 describe("Inspector — linked tasks", () => {
-  it("hides the linked tasks section when there are no linked tasks", () => {
+  it("shows the linked tasks section even when there are no linked tasks", () => {
     useAppStore.setState({ selectedEvent: makeEvent(), tasks: [] });
     renderInspector();
-    expect(screen.queryByText("LINKED TASKS")).not.toBeInTheDocument();
+    expect(screen.getByText("LINKED TASKS")).toBeInTheDocument();
+    expect(screen.getByText("No linked tasks yet")).toBeInTheDocument();
   });
 
   it("shows LINKED TASKS section when tasks link to the selected event", () => {
@@ -272,7 +274,8 @@ describe("Inspector — linked tasks", () => {
       tasks: [makeTask({ event_ids: ["evt-99"], text: "Other task" })],
     });
     renderInspector();
-    expect(screen.queryByText("LINKED TASKS")).not.toBeInTheDocument();
+    expect(screen.getByText("LINKED TASKS")).toBeInTheDocument();
+    expect(screen.queryByText("Other task")).not.toBeInTheDocument();
   });
 
   it("calls toggleTask when the task checkbox is clicked", async () => {

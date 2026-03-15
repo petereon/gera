@@ -44,8 +44,8 @@ function makeEvent(overrides: Partial<EventEntity> = {}): EventEntity {
   return {
     id: "evt-1",
     source: "local",
-    from_: "2026-03-14T10:00:00",
-    to: "2026-03-14T11:00:00",
+    from_: "2030-01-01T10:00:00",
+    to: "2030-01-01T11:00:00",
     name: "Standup",
     description: "",
     participants: [],
@@ -109,7 +109,7 @@ describe("useTaskFiltering — filteredOtherTasks", () => {
   it("sorts tasks with deadlines before tasks without", () => {
     const tasks = [
       makeTask({ text: "No deadline", line_number: 1, deadline: null }),
-      makeTask({ text: "Has deadline", line_number: 2, deadline: "2026-03-20T09:00:00" }),
+      makeTask({ text: "Has deadline", line_number: 2, deadline: "2030-01-20T09:00:00" }),
     ];
     const { result } = renderHook(() => useTaskFiltering(tasks, NO_EVENTS, ""));
     expect(result.current.filteredOtherTasks[0].text).toBe("Has deadline");
@@ -118,8 +118,8 @@ describe("useTaskFiltering — filteredOtherTasks", () => {
 
   it("sorts by earliest deadline when multiple tasks have deadlines", () => {
     const tasks = [
-      makeTask({ text: "Later", line_number: 1, deadline: "2026-03-25T09:00:00" }),
-      makeTask({ text: "Earlier", line_number: 2, deadline: "2026-03-15T09:00:00" }),
+      makeTask({ text: "Later", line_number: 1, deadline: "2030-01-25T09:00:00" }),
+      makeTask({ text: "Earlier", line_number: 2, deadline: "2030-01-15T09:00:00" }),
     ];
     const { result } = renderHook(() => useTaskFiltering(tasks, NO_EVENTS, ""));
     expect(result.current.filteredOtherTasks[0].text).toBe("Earlier");
@@ -159,8 +159,8 @@ describe("useTaskFiltering — filteredEventsWithTasks", () => {
       makeTask({ text: "B", line_number: 2, event_ids: ["evt-earlier"] }),
     ];
     const events = [
-      makeEvent({ id: "evt-later", from_: "2026-03-14T14:00:00" }),
-      makeEvent({ id: "evt-earlier", from_: "2026-03-14T09:00:00" }),
+      makeEvent({ id: "evt-later", from_: "2030-01-14T14:00:00" }),
+      makeEvent({ id: "evt-earlier", from_: "2030-01-14T09:00:00" }),
     ];
     const { result } = renderHook(() => useTaskFiltering(tasks, events, ""));
     expect(result.current.filteredEventsWithTasks[0].id).toBe("evt-earlier");
@@ -212,7 +212,7 @@ describe("useTaskFiltering — getTasksForEvent", () => {
 
 describe("useTaskFiltering — timeline", () => {
   it("puts tasks with a deadline in timelineScheduledTasks", () => {
-    const tasks = [makeTask({ deadline: "2026-03-20T09:00:00" })];
+    const tasks = [makeTask({ deadline: "2030-01-20T09:00:00" })];
     const { result } = renderHook(() => useTaskFiltering(tasks, NO_EVENTS, ""));
     expect(result.current.timelineScheduledTasks).toHaveLength(1);
     expect(result.current.timelineUnscheduledTasks).toHaveLength(0);
@@ -227,15 +227,15 @@ describe("useTaskFiltering — timeline", () => {
 
   it("puts tasks linked to an event in timelineScheduledTasks (event provides time)", () => {
     const tasks = [makeTask({ deadline: null, event_ids: ["evt-1"] })];
-    const events = [makeEvent({ id: "evt-1", from_: "2026-03-14T10:00:00" })];
+    const events = [makeEvent({ id: "evt-1", from_: "2030-01-14T10:00:00" })];
     const { result } = renderHook(() => useTaskFiltering(tasks, events, ""));
     expect(result.current.timelineScheduledTasks).toHaveLength(1);
   });
 
   it("sorts timelineScheduledTasks by effective time ascending", () => {
     const tasks = [
-      makeTask({ text: "Later", line_number: 1, deadline: "2026-03-25T09:00:00" }),
-      makeTask({ text: "Earlier", line_number: 2, deadline: "2026-03-15T09:00:00" }),
+      makeTask({ text: "Later", line_number: 1, deadline: "2030-01-25T09:00:00" }),
+      makeTask({ text: "Earlier", line_number: 2, deadline: "2030-01-15T09:00:00" }),
     ];
     const { result } = renderHook(() => useTaskFiltering(tasks, NO_EVENTS, ""));
     expect(result.current.timelineScheduledTasks[0].text).toBe("Earlier");

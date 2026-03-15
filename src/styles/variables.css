@@ -17,6 +17,7 @@
   --accent-blue: #5B9BD5;
   --accent-blue-light: #A8CBE8;
   --accent-blue-subtle: #DBEAFE;
+  --accent-red: #ef4444;
 
   /* Additional brand / accent tokens */
   --brand-gradient-start: #D4A574;
@@ -130,6 +131,7 @@ body {
   /* Accent (Brand Color) */
   --accent-blue: #5B9BD5;
   --accent-blue-light: #7FB4E0;
+  --accent-red: #ef4444;
   --accent-blue-subtle: rgba(91, 155, 213, 0.14);
 
   /* Shadows */

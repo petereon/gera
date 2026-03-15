@@ -16,23 +16,17 @@ export function cleanTaskDisplay(task: TaskEntity): string {
     }
   }
   
-  // Remove event references
-  if (task.event_ids && task.resolved_event_names) {
+  // Remove event references (strip all event IDs regardless of resolution)
+  if (task.event_ids) {
     for (const eid of task.event_ids) {
-      const evName = task.resolved_event_names[eid];
-      if (evName) {
-        display = display.replace(`@${eid}`, "");
-      }
+      display = display.replace(`@${eid}`, "");
     }
   }
-  
-  // Remove project references
-  if (task.project_ids && task.resolved_project_names) {
+
+  // Remove project references (strip all project IDs regardless of resolution)
+  if (task.project_ids) {
     for (const pid of task.project_ids) {
-      const projName = task.resolved_project_names[pid];
-      if (projName) {
-        display = display.replace(`#${pid}`, "");
-      }
+      display = display.replace(`#${pid}`, "");
     }
   }
   

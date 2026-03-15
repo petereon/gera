@@ -1,11 +1,11 @@
-import { useRef, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
 import { useTaskFiltering } from '../../hooks/useTaskFiltering';
 import { createTask } from '../../api';
 import { SearchInput } from '../shared/SearchInput';
 import { TaskList, TasksViewMode } from './TaskList';
 import { PlusIcon } from '../icons/Icons';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { TaskModal } from './TaskModal';
 
 interface TasksViewProps {}
 
@@ -18,7 +18,10 @@ export function TasksView({}: TasksViewProps) {
   const setPendingCreate = useAppStore((state) => state.setPendingCreate);
   const searchFocusTrigger = useAppStore((state) => state.searchFocusTrigger);
 
+  const pendingFocusTask = useAppStore((state) => state.pendingFocusTask);
+
   const [showModal, setShowModal] = useState(false);
+  const [viewMode, setViewMode] = useState<TasksViewMode>('timeline');
 
   useEffect(() => {
     if (pendingCreate === 'task') {
@@ -26,55 +29,17 @@ export function TasksView({}: TasksViewProps) {
       setPendingCreate(null);
     }
   }, [pendingCreate, setPendingCreate]);
-  const [newTaskText, setNewTaskText] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [viewMode, setViewMode] = useState<TasksViewMode>('timeline');
-  const backdropRef = useRef<HTMLDivElement>(null);
-  const createPanelRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(createPanelRef);
 
-  const { filteredEventsWithTasks, filteredOtherTasks, timelineScheduledTasks, timelineUnscheduledTasks, getTasksForEvent } =
-    useTaskFiltering(tasks, events, tasksSearch);
-
-  const closeModal = () => {
-    setNewTaskText('');
-    setShowModal(false);
-  };
-
+  // When navigating to a specific task, clear any filter and switch to timeline
+  // so the task is guaranteed to be rendered and TaskItem can focus it.
   useEffect(() => {
-    if (!showModal) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') closeModal(); };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [showModal]);
+    if (!pendingFocusTask) return;
+    if (tasksSearch) setTasksSearch('');
+    setViewMode('timeline');
+  }, [pendingFocusTask]);
 
-  const handleCreateTask = async () => {
-    const text = newTaskText.trim();
-    if (!text || isSubmitting) return;
-
-    setIsSubmitting(true);
-    try {
-      await createTask(text);
-      closeModal();
-    } catch (error) {
-      console.error('Failed to create task:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleCreateTask();
-    } else if (e.key === 'Escape') {
-      closeModal();
-    }
-  };
-
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === backdropRef.current) closeModal();
-  };
+  const { filteredEventsWithTasks, filteredOtherTasks, timelineOverdueTasks, timelineScheduledTasks, timelineUnscheduledTasks, getTasksForEvent } =
+    useTaskFiltering(tasks, events, tasksSearch);
 
   return (
     <div className="tasks-view">
@@ -94,7 +59,6 @@ export function TasksView({}: TasksViewProps) {
             >
               By Event
             </button>
-            
           </div>
           <button
             className="icon-btn icon-btn--accent"
@@ -116,6 +80,7 @@ export function TasksView({}: TasksViewProps) {
       <TaskList
         filteredEventsWithTasks={filteredEventsWithTasks}
         filteredOtherTasks={filteredOtherTasks}
+        timelineOverdueTasks={timelineOverdueTasks}
         timelineScheduledTasks={timelineScheduledTasks}
         timelineUnscheduledTasks={timelineUnscheduledTasks}
         getTasksForEvent={getTasksForEvent}
@@ -123,33 +88,12 @@ export function TasksView({}: TasksViewProps) {
       />
 
       {showModal && (
-        <div className="modal-backdrop" ref={backdropRef} onClick={handleBackdropClick}>
-          <div className="modal-panel" ref={createPanelRef}>
-            <h3 className="modal-title">New Task</h3>
-            <input
-              type="text"
-              className="modal-input"
-              placeholder="Task description…"
-              value={newTaskText}
-              onChange={(e) => setNewTaskText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              autoFocus
-              disabled={isSubmitting}
-            />
-            <div className="modal-actions">
-              <button className="modal-btn modal-btn--cancel" onClick={closeModal}>
-                Cancel
-              </button>
-              <button
-                className="modal-btn modal-btn--submit"
-                onClick={handleCreateTask}
-                disabled={!newTaskText.trim() || isSubmitting}
-              >
-                {isSubmitting ? 'Creating…' : 'Create'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <TaskModal
+          title="New Task"
+          submitLabel="Create"
+          onSave={async (fullText) => { await createTask(fullText); }}
+          onClose={() => setShowModal(false)}
+        />
       )}
     </div>
   );

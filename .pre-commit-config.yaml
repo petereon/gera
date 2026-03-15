@@ -1,0 +1,30 @@
+repos:
+  - repo: local
+    hooks:
+      - id: tsc
+        name: Type-check (tsc)
+        language: system
+        entry: bunx tsc --noEmit
+        pass_filenames: false
+        always_run: true
+
+      - id: vitest
+        name: JS tests (vitest)
+        language: system
+        entry: bun run test
+        pass_filenames: false
+        always_run: true
+
+      - id: ruff
+        name: Lint (ruff)
+        language: system
+        entry: sh -c 'cd src-tauri && uvx ruff check .'
+        pass_filenames: false
+        always_run: true
+
+      - id: pytest
+        name: Python tests (pytest)
+        language: system
+        entry: sh -c 'cd src-tauri && uv run --extra test pytest'
+        pass_filenames: false
+        always_run: true

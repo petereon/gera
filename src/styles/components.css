@@ -500,6 +500,15 @@
   padding: 1px 7px;
 }
 
+.task-group--overdue .task-group-header .task-category {
+  color: var(--accent-red);
+}
+
+.task-group--overdue .task-group-count {
+  background: color-mix(in srgb, var(--accent-red) 15%, transparent);
+  color: var(--accent-red);
+}
+
 .task-item {
   display: flex;
   align-items: flex-start;
@@ -564,6 +573,15 @@
   color: var(--chip-event-text);
 }
 
+.task-tag--link {
+  border: none;
+  cursor: pointer;
+}
+
+.task-tag--link:hover {
+  filter: brightness(1.15);
+}
+
 .task-tag--project {
   background: var(--chip-project-bg);
   color: var(--chip-project-text);
@@ -577,6 +595,12 @@
 .task-tag--deadline svg {
   width: 12px;
   height: 12px;
+}
+
+.task-tag--overdue {
+  background: color-mix(in srgb, var(--accent-red) 15%, transparent);
+  color: var(--accent-red);
+  font-weight: 600;
 }
 
 /* Source note label / chip pinned to right of task row */
@@ -759,6 +783,12 @@
 
 .linked-tasks-pane {
   flex: 1;
+}
+
+.linked-empty-hint {
+  color: var(--text-tertiary);
+  font-size: 13px;
+  margin: 4px 0 0;
 }
 
 .note-preview-pane {

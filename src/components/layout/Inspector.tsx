@@ -8,14 +8,17 @@ import {
   DocumentIcon,
   PencilIcon,
   CloseIcon,
+  PlusIcon,
 } from '../icons/Icons';
 import { Checkbox } from '../shared/Checkbox';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { NoteTile } from '../notes/NoteTile';
-import { cleanTaskDisplay } from '../../utils/taskFormatting';
+import { cleanTaskDisplay, getTaskTags } from '../../utils/taskFormatting';
 import { formatEventDate, formatEventTime } from '../../utils/dateFormatting';
-import { toggleTask } from '../../api';
+import { toggleTask, createNote, createTask } from '../../api';
 import { EventEditModal } from '../calendar/EventEditModal';
+import { TaskModal } from '../tasks/TaskModal';
+
 
 interface InspectorProps {
   isVisible: boolean;
@@ -54,7 +57,6 @@ export function Inspector({ isVisible, isModal = false }: InspectorProps) {
             selectedEvent={selectedEvent}
             linkedNotes={linkedNotes}
             linkedTasks={linkedTasks}
-            notes={notes}
             editingEvent={editingEvent}
             setEditingEvent={setEditingEvent}
             navigate={navigate}
@@ -80,7 +82,6 @@ export function Inspector({ isVisible, isModal = false }: InspectorProps) {
           selectedEvent={selectedEvent}
           linkedNotes={linkedNotes}
           linkedTasks={linkedTasks}
-          notes={notes}
           editingEvent={editingEvent}
           setEditingEvent={setEditingEvent}
           navigate={navigate}
@@ -101,7 +102,6 @@ function InspectorContent({
   selectedEvent,
   linkedNotes,
   linkedTasks,
-  notes: _notes,
   editingEvent,
   setEditingEvent,
   navigate,
@@ -112,7 +112,6 @@ function InspectorContent({
   selectedEvent: ReturnType<typeof useAppStore.getState>['selectedEvent'];
   linkedNotes: ReturnType<typeof useAppStore.getState>['notes'];
   linkedTasks: ReturnType<typeof useAppStore.getState>['tasks'];
-  notes: ReturnType<typeof useAppStore.getState>['notes'];
   editingEvent: boolean;
   setEditingEvent: (v: boolean) => void;
   navigate: ReturnType<typeof useNavigate>;
@@ -120,7 +119,32 @@ function InspectorContent({
   setReturnView: ReturnType<typeof useAppStore.getState>['setReturnView'];
   closeButton?: React.ReactNode;
 }) {
+  const setPendingFocusTask = useAppStore((state) => state.setPendingFocusTask);
+  const events = useAppStore((state) => state.events);
   const [editProhibited, setEditProhibited] = useState(false);
+
+  // ── Task creation modal ──────────────────────────────────────────────────
+  const [showTaskModal, setShowTaskModal] = useState(false);
+
+  // ── Note creation ────────────────────────────────────────────────────────
+  const [isCreatingNote, setIsCreatingNote] = useState(false);
+
+  const handleCreateNote = async () => {
+    if (!selectedEvent || isCreatingNote) return;
+    setIsCreatingNote(true);
+    try {
+      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const note = await createNote(`note-${ts}`, '', [selectedEvent.id]);
+      setSelectedNote(note);
+      setReturnView('/calendar');
+      navigate('/notes');
+    } catch (err) {
+      console.error('Failed to create note:', err);
+    } finally {
+      setIsCreatingNote(false);
+    }
+  };
+
   return (
     <>
       {/* Event Details */}
@@ -180,7 +204,6 @@ function InspectorContent({
               )}
             </div>
 
-            {/* Join Video Call intentionally hidden */}
             {editProhibited && selectedEvent && (
               <ConfirmDialog
                 title="Edit Disabled"
@@ -199,46 +222,126 @@ function InspectorContent({
         )}
       </div>
 
-      {/* Linked Notes */}
-      {linkedNotes.length > 0 && (
+      {/* Linked Notes — always visible when an event is selected */}
+      {selectedEvent && (
         <div className="island-pane linked-tasks-pane">
-          <div className="section-label">LINKED NOTES</div>
-          <div className="notes-grid notes-grid--compact">
-            {linkedNotes.map((n) => (
-              <NoteTile
-                key={n.filename}
-                note={n}
-                onOpen={() => {
-                  setSelectedNote(n);
-                  setReturnView('/calendar');
-                  navigate('/notes');
-                }}
-              />
-            ))}
+          <div className="section-header-row">
+            <div className="section-label">LINKED NOTES</div>
+            <button
+              className="icon-btn icon-btn--accent"
+              onClick={handleCreateNote}
+              disabled={isCreatingNote}
+              aria-label="New linked note"
+              title="New linked note"
+            >
+              <PlusIcon />
+            </button>
           </div>
+          {linkedNotes.length > 0 ? (
+            <div className="notes-grid notes-grid--compact">
+              {linkedNotes.map((n) => (
+                <NoteTile
+                  key={n.filename}
+                  note={n}
+                  onOpen={() => {
+                    setSelectedNote(n);
+                    setReturnView('/calendar');
+                    navigate('/notes');
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="linked-empty-hint">No linked notes yet</p>
+          )}
         </div>
       )}
 
-      {/* Linked Tasks */}
-      {linkedTasks.length > 0 && (
+      {/* Linked Tasks — always visible when an event is selected */}
+      {selectedEvent && (
         <div className="island-pane linked-tasks-pane">
-          <div className="section-label">LINKED TASKS</div>
-          <div className="task-groups">
-            {linkedTasks.map((t, i) => (
-              <div key={i} className="task-item">
-                <Checkbox
-                  checked={t.completed}
-                  onChange={() => toggleTask(t.source_file, t.line_number).catch(console.error)}
-                />
-                <span className={t.completed ? "completed" : ""}>{cleanTaskDisplay(t)}</span>
-              </div>
-            ))}
+          <div className="section-header-row">
+            <div className="section-label">LINKED TASKS</div>
+            <button
+              className="icon-btn icon-btn--accent"
+              onClick={() => setShowTaskModal(true)}
+              aria-label="New linked task"
+              title="New linked task"
+            >
+              <PlusIcon />
+            </button>
           </div>
+          {linkedTasks.length > 0 ? (
+            <div className="task-groups">
+              {linkedTasks.map((t) => {
+                const { hasDeadline } = getTaskTags(t);
+                const otherEventTags = (t.event_ids ?? [])
+                  .filter((eid) => eid !== selectedEvent.id)
+                  .map((eid) => ({
+                    id: eid,
+                    name: t.resolved_event_names?.[eid]
+                      || events.find((e) => e.id === eid)?.name
+                      || eid,
+                  }));
+                return (
+                  <div
+                    key={`${t.source_file}:${t.line_number}`}
+                    className="task-item"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => {
+                      setPendingFocusTask({ source_file: t.source_file, line_number: t.line_number });
+                      navigate('/tasks');
+                    }}
+                  >
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={t.completed}
+                        onChange={() => toggleTask(t.source_file, t.line_number).catch(console.error)}
+                      />
+                    </div>
+                    <div className="task-content">
+                      <span className={`task-text${t.completed ? ' completed' : ''}`}>
+                        {cleanTaskDisplay(t)}
+                      </span>
+                      {(hasDeadline || otherEventTags.length > 0) && (
+                        <div className="task-tags">
+                          {hasDeadline && (
+                            <span className="task-tag task-tag--deadline">
+                              <ClockIcon />
+                              {formatEventDate(t.deadline!)} {formatEventTime(t.deadline!)}
+                            </span>
+                          )}
+                          {otherEventTags.map((tag) => (
+                            <span key={tag.id} className="task-tag task-tag--event">
+                              @{tag.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="linked-empty-hint">No linked tasks yet</p>
+          )}
         </div>
       )}
 
       {editingEvent && selectedEvent && selectedEvent.metadata?.source_platform !== 'google_calendar' && (
         <EventEditModal event={selectedEvent} onClose={() => setEditingEvent(false)} />
+      )}
+
+      {/* Task creation modal */}
+      {showTaskModal && (
+        <TaskModal
+          title="New Task"
+          submitLabel="Create"
+          initialEventIds={selectedEvent ? [selectedEvent.id] : []}
+          onSave={async (fullText) => { await createTask(fullText); }}
+          onClose={() => setShowTaskModal(false)}
+        />
       )}
     </>
   );

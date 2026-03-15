@@ -16,6 +16,7 @@ export interface CalendarStore {
   goToPrevious: () => void;
   goToNext: () => void;
   goToToday: () => void;
+  goToDate: (date: Date) => void;
 }
 
 export const useCalendarStore = create<CalendarStore>((set, get) => {
@@ -58,6 +59,11 @@ export const useCalendarStore = create<CalendarStore>((set, get) => {
     goToToday: () => {
       const view = get().calendarView;
       const start = view === 'week' ? getMonday(today) : new Date(today);
+      set({ currentPeriodStart: start });
+    },
+    goToDate: (date: Date) => {
+      const view = get().calendarView;
+      const start = view === 'week' ? getMonday(date) : new Date(date);
       set({ currentPeriodStart: start });
     },
   };

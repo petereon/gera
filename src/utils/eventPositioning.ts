@@ -2,6 +2,69 @@ import { EventEntity } from '../api';
 
 export const HOUR_HEIGHT_PX = 56;
 
+export interface OverlapLayout {
+  columnIndex: number;
+  columnCount: number;
+}
+
+/**
+ * Given the timed events for a single day, compute horizontal layout for
+ * overlapping events.
+ *
+ * Events whose time ranges overlap (even by a single minute) are placed in the
+ * same group. Within a group of N events, each event occupies 1/N of the column
+ * width for its entire duration — even if only a small portion of it overlaps.
+ *
+ * Returns a Map<eventId, {columnIndex, columnCount}>.
+ */
+export function computeOverlapLayout(events: EventEntity[]): Map<string, OverlapLayout> {
+  const result = new Map<string, OverlapLayout>();
+  const n = events.length;
+  if (n === 0) return result;
+
+  const times = events.map((ev) => ({
+    from: new Date(ev.from_).getTime(),
+    to: new Date(ev.to).getTime(),
+  }));
+
+  // Adjacency: two events are adjacent if their time ranges overlap
+  const adj: boolean[][] = Array.from({ length: n }, () => new Array(n).fill(false));
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (times[i].from < times[j].to && times[j].from < times[i].to) {
+        adj[i][j] = true;
+        adj[j][i] = true;
+      }
+    }
+  }
+
+  // BFS to find connected components; sort each by start time then assign columns
+  const visited = new Array<boolean>(n).fill(false);
+  for (let start = 0; start < n; start++) {
+    if (visited[start]) continue;
+    const component: number[] = [];
+    const queue: number[] = [start];
+    visited[start] = true;
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+      component.push(cur);
+      for (let j = 0; j < n; j++) {
+        if (!visited[j] && adj[cur][j]) {
+          visited[j] = true;
+          queue.push(j);
+        }
+      }
+    }
+    component.sort((a, b) => times[a].from - times[b].from);
+    const columnCount = component.length;
+    component.forEach((idx, colIdx) => {
+      result.set(events[idx].id, { columnIndex: colIdx, columnCount });
+    });
+  }
+
+  return result;
+}
+
 /** True if the event spans 24 hours or more (all-day / multi-day). */
 export function isAllDayEvent(event: EventEntity): boolean {
   try {

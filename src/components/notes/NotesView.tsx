@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../stores/useAppStore';
+import { useCalendarStore } from '../../stores/useCalendarStore';
 import { useNoteFiltering } from '../../hooks/useNoteFiltering';
 import { getNoteContent, createNote, updateNoteContent } from '../../api';
 import { SearchInput } from '../shared/SearchInput';
@@ -14,6 +15,9 @@ interface NotesViewProps {}
 
 export function NotesView({}: NotesViewProps) {
   const events = useAppStore((state) => state.events);
+  const setSelectedEvent = useAppStore((state) => state.setSelectedEvent);
+  const setHighlightEventId = useAppStore((state) => state.setHighlightEventId);
+  const goToDate = useCalendarStore((state) => state.goToDate);
   const notes = useAppStore((state) => state.notes);
   const notesSearch = useAppStore((state) => state.notesSearch);
   const setNotesSearch = useAppStore((state) => state.setNotesSearch);
@@ -278,7 +282,20 @@ export function NotesView({}: NotesViewProps) {
                 const event = events.find((e) => e.id === id);
                 return (
                   <span key={id} className="metadata-chip metadata-chip--event">
-                    @{event?.name ?? id}
+                    <button
+                      className="metadata-chip-navigate"
+                      onClick={() => {
+                        if (event) {
+                          setSelectedEvent(event);
+                          setHighlightEventId(event.id);
+                          goToDate(new Date(event.from_));
+                          navigate('/calendar');
+                        }
+                      }}
+                      title={`Go to event: ${event?.name ?? id}`}
+                    >
+                      @{event?.name ?? id}
+                    </button>
                     <button
                       className="metadata-chip-remove"
                       onClick={() => removeEventId(id)}
