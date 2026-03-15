@@ -54,19 +54,21 @@ export function useKeyboard() {
         return;
       }
 
+      // All shortcuts are suppressed when any modal is open
+      if (document.querySelector('.modal-backdrop')) return;
+
+      // Navigation shortcuts fire even inside text inputs
+      if (matchesKeys(e, getActiveKeys('goToTasks')))    { e.preventDefault(); navigate('/tasks');    return; }
+      if (matchesKeys(e, getActiveKeys('goToNotes')))    { e.preventDefault(); navigate('/notes');    return; }
+      if (matchesKeys(e, getActiveKeys('goToCalendar'))) { e.preventDefault(); navigate('/calendar'); return; }
+
       // All remaining shortcuts are suppressed when typing in an input
       if (isInTextInput(e.target)) return;
-
-      // All view/navigation shortcuts are suppressed when any modal is open
-      if (document.querySelector('.modal-backdrop')) return;
 
       // All shortcuts are suppressed while the onboarding tour is active
       if (document.querySelector('.driver-popover')) return;
 
-      // ── Global: navigation & settings ──
-      if (matchesKeys(e, getActiveKeys('goToTasks')))    { e.preventDefault(); navigate('/tasks');    return; }
-      if (matchesKeys(e, getActiveKeys('goToNotes')))    { e.preventDefault(); navigate('/notes');    return; }
-      if (matchesKeys(e, getActiveKeys('goToCalendar'))) { e.preventDefault(); navigate('/calendar'); return; }
+      // ── Global: settings ──
       if (matchesKeys(e, getActiveKeys('openSettings'))) { e.preventDefault(); setSettingsOpen(true); return; }
       if (matchesKeys(e, getActiveKeys('focusSearch')))  { e.preventDefault(); triggerSearchFocus(); return; }
       if (e.key === '/') { e.preventDefault(); triggerSearchFocus(); return; }

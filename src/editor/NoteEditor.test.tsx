@@ -8,7 +8,7 @@
  * specifies what an end-to-end test would need to verify.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { fireEvent } from "@testing-library/react";
 
@@ -74,7 +74,42 @@ vi.mock("@mdxeditor/editor", async () => {
 vi.mock("./geraRefsPlugin", () => ({ geraRefsPlugin: () => null }));
 vi.mock("./NoteEditor.css", () => ({}));
 
+// CodeMirror uses ResizeObserver / DOM APIs not available in jsdom; stub the
+// PlainTextEditor so plain-mode tests cover NoteEditor logic, not CM internals.
+vi.mock("./PlainTextEditor", async () => {
+  const React = await import("react");
+  const PlainTextEditor = React.forwardRef(
+    (
+      props: { value: string; onChange?: (v: string) => void },
+      ref: React.Ref<{ focus(): void }>
+    ) => {
+      React.useImperativeHandle(ref, () => ({ focus: vi.fn() }));
+      return React.createElement("textarea", {
+        "data-testid": "plain-editor",
+        value: props.value,
+        onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) =>
+          props.onChange?.(e.target.value),
+      });
+    }
+  );
+  PlainTextEditor.displayName = "PlainTextEditor";
+  return { PlainTextEditor };
+});
+
 import { NoteEditor } from "./NoteEditor";
+
+// ── localStorage stub ─────────────────────────────────────────────────────────
+// jsdom's localStorage is incomplete in this vitest setup; provide our own.
+const localStorageStore: Record<string, string> = {};
+vi.stubGlobal("localStorage", {
+  getItem: (key: string) => localStorageStore[key] ?? null,
+  setItem: (key: string, val: string) => { localStorageStore[key] = val; },
+  removeItem: (key: string) => { delete localStorageStore[key]; },
+});
+
+beforeEach(() => {
+  delete localStorageStore["noteEditorMode"];
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -87,11 +122,20 @@ function renderEditor(content = "# Hello\n\nsome content\n") {
 // ── Smoke tests ───────────────────────────────────────────────────────────────
 
 describe("NoteEditor — smoke", () => {
-  it("mounts without crashing", () => {
+  it("mounts in rich mode by default", () => {
     renderEditor();
     expect(screen.getByTestId("mdx-editor")).toBeInTheDocument();
+    expect(screen.queryByTestId("plain-editor")).not.toBeInTheDocument();
+  });
+
+  it("mounts in plain mode when localStorage preference is set", () => {
+    localStorage.setItem("noteEditorMode", "plain");
+    renderEditor();
+    expect(screen.getByTestId("plain-editor")).toBeInTheDocument();
+    expect(screen.queryByTestId("mdx-editor")).not.toBeInTheDocument();
   });
 });
+
 
 // ── BUG-007: chip mutations scroll editor to top ──────────────────────────────
 //

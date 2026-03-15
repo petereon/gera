@@ -30,6 +30,7 @@ vi.mock("../../types/keybindings", () => ({
   saveOverride: (...args: unknown[]) => mockSaveOverride(...args),
   resetAllOverrides: () => mockResetAllOverrides(),
   formatKeyEvent: (e: KeyboardEvent) => mockFormatKeyEvent(e),
+  formatKeysForDisplay: (keys: string) => keys,
 }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

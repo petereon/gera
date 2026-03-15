@@ -6,6 +6,20 @@ import path from "path";
 export default defineConfig(async () => ({
   plugins: [react()],
 
+  // Force a single copy of every @codemirror package so that instanceof checks
+  // inside CodeMirror don't fail when MDXEditor and our PlainTextEditor both
+  // pull in @codemirror/state (multiple copies break the extension registry).
+  resolve: {
+    dedupe: [
+      "codemirror",
+      "@codemirror/state",
+      "@codemirror/view",
+      "@codemirror/language",
+      "@codemirror/commands",
+      "@codemirror/lang-markdown",
+    ],
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent vite from obscuring rust errors

@@ -61,6 +61,41 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* Tooltip on toggle buttons */
+.tasks-view-toggle-btn[data-tooltip] {
+  position: relative;
+}
+
+.tasks-view-toggle-btn[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text-primary);
+  color: var(--surface-primary);
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 5px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  z-index: 100;
+}
+
+.tasks-view-toggle-btn[data-tooltip]:hover::after {
+  opacity: 1;
+}
+
+.tasks-view-toggle-btn:last-child[data-tooltip]::after {
+  left: unset;
+  right: 0;
+  transform: none;
+}
+
+
 .icon-btn {
   width: 32px;
   height: 32px;

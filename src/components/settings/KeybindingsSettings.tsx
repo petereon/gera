@@ -3,6 +3,7 @@ import {
   ALL_BINDINGS,
   KeyBinding,
   formatKeyEvent,
+  formatKeysForDisplay,
   getActiveKeys,
   getMergedBindings,
   resetAllOverrides,
@@ -81,7 +82,7 @@ export function KeybindingsSettings() {
         {CONFIGURABLE.map((def) => {
           const merged = bindings.find((b) => b.action === def.action)!;
           const isRecording = recording === def.action;
-          const displayKey = isRecording ? (pendingKey || '…') : merged.keys;
+          const displayKey = isRecording ? (pendingKey ? formatKeysForDisplay(pendingKey) : '…') : formatKeysForDisplay(merged.keys);
           const isModified = merged.keys !== def.keys;
 
           return (
