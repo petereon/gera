@@ -9,14 +9,41 @@
   height: 100%;
   background-color: var(--surface-primary);
   border-radius: 0.75rem;
-  overflow: hidden;
+  /* overflow: visible so tooltips on toolbar buttons are not clipped;
+     border-radius still rounds the visual corners */
+  overflow: visible;
   position: relative;
 }
+
+
+/* ── Plain-text (CodeMirror) editor ─────────────────────────────────────── */
+.plain-text-editor {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Make the CodeMirror root fill the container */
+.plain-text-editor .cm-editor {
+  height: 100%;
+  outline: none;
+}
+
+.plain-text-editor .cm-editor.cm-focused {
+  outline: none;
+}
+
 
 .note-editor .mdxeditor {
   flex: 1;
   overflow-y: auto;
   border: none;
+}
+
+/* Ensure MDXEditor's Radix tooltip portal paints above the sticky toolbar (z-index:10) */
+.note-editor [data-radix-popper-content-wrapper] {
+  z-index: 100 !important;
 }
 
 /* MDXEditor Toolbar Styling */
@@ -31,6 +58,7 @@
   position: sticky;
   top: 0;
   z-index: 10;
+  overflow: visible;
 }
 
 .note-editor .mdxeditor-toolbar button {

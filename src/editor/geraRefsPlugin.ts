@@ -213,6 +213,26 @@ const GeraRefExportVisitor: LexicalExportVisitor<GeraRefNode, Mdast.Text> = {
   },
 };
 
+/**
+ * Suppress the cursor-anchor text node that `selectAfterChip` inserts after
+ * every chip.  It is whitespace-only and exists purely for Lexical caret
+ * positioning — it must never reach the mdast/markdown output, otherwise
+ * remark-stringify encodes it as `&#x20;` which leaks into the plain editor
+ * and on-disk file.
+ */
+const TrailingAnchorTextExportVisitor: LexicalExportVisitor<TextNode, Mdast.Text> = {
+  testLexicalNode: (node: LexicalNode): node is TextNode =>
+    $isTextNode(node) &&
+    node.getTextContent().length > 0 &&
+    node.getTextContent().trim().length === 0 &&
+    $isGeraRefNode(node.getPreviousSibling()),
+  // Higher priority than MDXEditor's built-in text visitor (0)
+  priority: 1000,
+  visitLexicalNode() {
+    // Intentionally emit nothing — the whitespace is not content
+  },
+};
+
 /* ------------------------------------------------------------------ */
 /* Backspace helper                                                     */
 /* ------------------------------------------------------------------ */
@@ -335,6 +355,7 @@ export const geraRefsPlugin = realmPlugin({
       [addExportVisitor$]: GeraRefExportVisitor,
       [addComposerChild$]: GeraRefTypeahead,
     });
+    realm.pub(addExportVisitor$, TrailingAnchorTextExportVisitor);
 
     /* ---- runtime hooks (backspace, arrows, re-chip, cursor tracking) ---- */
 

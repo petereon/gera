@@ -5,9 +5,10 @@ import { useNoteFiltering } from '../../hooks/useNoteFiltering';
 import { getNoteContent, createNote, updateNoteContent } from '../../api';
 import { SearchInput } from '../shared/SearchInput';
 import { NotesGrid } from './NotesGrid';
-import { NoteEditor } from '../../editor/NoteEditor';
+import { NoteEditor, type EditorMode, type NoteEditorRef } from '../../editor/NoteEditor';
 import { PlusIcon } from '../icons/Icons';
 import { parseFrontmatter } from '../../utils/frontmatter';
+import { matchesKeys, getActiveKeys, formatKeysForDisplay } from '../../types/keybindings';
 
 interface NotesViewProps {}
 
@@ -34,6 +35,13 @@ export function NotesView({}: NotesViewProps) {
   const [isLoadingNote, setIsLoadingNote] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Editor mode toggle (Rich / Plain) — persisted to localStorage
+  const [editorMode, setEditorMode] = useState<EditorMode>(
+    () => (localStorage.getItem('noteEditorMode') as EditorMode) ?? 'rich'
+  );
+
+  const noteEditorRef = useRef<NoteEditorRef>(null);
+
   // Event picker state
   const [showEventPicker, setShowEventPicker] = useState(false);
   const [eventSearch, setEventSearch] = useState('');
@@ -47,6 +55,12 @@ export function NotesView({}: NotesViewProps) {
   useEffect(() => {
     if (!selectedNote) return;
     const handler = (e: KeyboardEvent) => {
+      if (matchesKeys(e, getActiveKeys('toggleEditorMode'))) {
+        e.preventDefault();
+        if (editorMode === 'rich') noteEditorRef.current?.switchToPlain();
+        else noteEditorRef.current?.switchToRich();
+        return;
+      }
       if (e.key === 'Escape') {
         e.stopPropagation();
         setSelectedNote(null);
@@ -55,7 +69,7 @@ export function NotesView({}: NotesViewProps) {
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [selectedNote, returnView, setSelectedNote, setReturnView, navigate]);
+  }, [selectedNote, editorMode, returnView, setSelectedNote, setReturnView, navigate]);
 
   // Focus search input when event picker opens
   useEffect(() => {
@@ -344,9 +358,27 @@ export function NotesView({}: NotesViewProps) {
                   </div>
                 )}
               </div>
+              {/* Rich / Plain toggle — pushed to the right */}
+              <div className="tasks-view-toggle" style={{ marginLeft: 'auto' }}>
+                <button
+                  className={`tasks-view-toggle-btn${editorMode === 'rich' ? ' active' : ''}`}
+                  data-tooltip={editorMode === 'plain' ? `Switch to Rich (${formatKeysForDisplay(getActiveKeys('toggleEditorMode'))})` : 'Rich-text editor'}
+                  onClick={() => noteEditorRef.current?.switchToRich()}
+                >
+                  Rich
+                </button>
+                <button
+                  className={`tasks-view-toggle-btn${editorMode === 'plain' ? ' active' : ''}`}
+                  data-tooltip={editorMode === 'rich' ? `Switch to Plain (${formatKeysForDisplay(getActiveKeys('toggleEditorMode'))})` : 'Plain Markdown editor'}
+                  onClick={() => noteEditorRef.current?.switchToPlain()}
+                >
+                  Plain
+                </button>
+              </div>
             </div>
             <div className="note-editor-container">
               <NoteEditor
+                ref={noteEditorRef}
                 key={selectedNote.filename}
                 filename={selectedNote.filename}
                 content={noteContent}
@@ -354,6 +386,8 @@ export function NotesView({}: NotesViewProps) {
                 projectIds={projectIds}
                 autoSave={true}
                 autoSaveDelay={1000}
+                mode={editorMode}
+                onModeChange={setEditorMode}
               />
             </div>
           </>

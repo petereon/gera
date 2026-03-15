@@ -965,10 +965,24 @@
   background-color: var(--surface-primary);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-md);
-  overflow: hidden;
+  /* overflow: visible so fixed-position tooltip portals are not clipped by
+     the border-radius + overflow:hidden WebKit compositing bug */
+  overflow: visible;
   /* Reset the padding from .notes-view so the chip bar can go edge-to-edge */
   padding: 0;
   gap: 0;
+}
+
+/* Clip the top/bottom children to the container's rounded corners now that
+   the outer container uses overflow: visible (needed for tooltip portals) */
+.notes-view--editor-mode > :first-child {
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  overflow: hidden;
+}
+
+.notes-view--editor-mode > :last-child {
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  overflow: hidden;
 }
 
 /* Header bar — same effective position as section-header-row inside .notes-view */
@@ -1129,7 +1143,7 @@
 
 .note-editor-container {
   flex: 1;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
 }

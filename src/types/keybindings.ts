@@ -44,6 +44,7 @@ export const ALL_BINDINGS: KeyBinding[] = [
   { action: 'calDayView',         label: 'Day view',             keys: '1',     scope: 'calendar' },
   { action: 'cal3DayView',        label: '3-day view',           keys: '3',     scope: 'calendar' },
   { action: 'calWeekView',        label: 'Week view',            keys: '7',     scope: 'calendar' },
+  { action: 'toggleEditorMode',   label: 'Toggle Rich/Plain mode', keys: '⌘\\', scope: 'notes'    },
 ];
 
 // ── Persistence ────────────────────────────────────────────────────────────
@@ -108,6 +109,22 @@ export function matchesKeys(e: KeyboardEvent, keys: string): boolean {
   if (p.shift !== e.shiftKey)  return false;
   if (p.alt   !== e.altKey)    return false;
   return e.key.toLowerCase() === p.key.toLowerCase();
+}
+
+const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform);
+
+/**
+ * Convert an internal key string (always using Mac symbols) to a
+ * platform-appropriate display string.
+ *   Mac:          "⌘⇧K"  →  "⌘⇧K"
+ *   Windows/Linux: "⌘⇧K"  →  "Ctrl+Shift+K"
+ */
+export function formatKeysForDisplay(keys: string): string {
+  if (isMac) return keys;
+  return keys
+    .replace(/⌘/g, 'Ctrl+')
+    .replace(/⇧/g, 'Shift+')
+    .replace(/⌥/g, 'Alt+');
 }
 
 /** Convert a KeyboardEvent to a display key string like "⌘⇧K". */
