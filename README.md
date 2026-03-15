@@ -40,7 +40,7 @@ Follow these steps to build the project locally:
 
 ## Roadmap
 
-Miscellaneous UI improvements can be expected in early future.
+Miscellaneous UI improvements and bugfixes can be expected in early future.
 
 Major milestones planned for the project:
 
@@ -51,5 +51,6 @@ Major milestones planned for the project:
 - [ ] Syncing calendar event changes back to the source calendar
 - [ ] Scriptability or plugin system
 - [ ] Sync for Outlook calendar
+- [ ] Localization
 - [ ] Mobile app
 - [ ] P2P sync between mobile apps and desktop apps
