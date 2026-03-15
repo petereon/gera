@@ -6,6 +6,26 @@ import { NotesView } from "./NotesView";
 import { useAppStore } from "../../stores/useAppStore";
 import type { EventEntity, NoteEntity } from "../../types";
 
+// jsdom 28 ships without a working localStorage — provide a simple in-memory stub
+const localStorageMock = (() => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: (key: string) => store[key] ?? null,
+    setItem: (key: string, value: string) => { store[key] = value; },
+    removeItem: (key: string) => { delete store[key]; },
+    clear: () => { store = {}; },
+    key: (i: number) => Object.keys(store)[i] ?? null,
+    get length() { return Object.keys(store).length; },
+  };
+})();
+vi.stubGlobal("localStorage", localStorageMock);
+
+vi.mock("../../types/keybindings", () => ({
+  matchesKeys: vi.fn(() => false),
+  getActiveKeys: vi.fn((action: string) => action),
+  formatKeysForDisplay: (keys: string) => keys,
+}));
+
 // ── API mocks ─────────────────────────────────────────────────────────────────
 
 const mockGetNoteContent = vi.fn();
@@ -79,6 +99,7 @@ function renderView() {
 const initialState = useAppStore.getState();
 
 beforeEach(() => {
+  localStorage.clear();
   useAppStore.setState(initialState, true);
   mockGetNoteContent.mockReset();
   mockCreateNote.mockReset();

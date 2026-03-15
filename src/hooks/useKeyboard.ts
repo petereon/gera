@@ -54,6 +54,9 @@ export function useKeyboard() {
         return;
       }
 
+      // All shortcuts are suppressed when any modal is open
+      if (document.querySelector('.modal-backdrop')) return;
+
       // Navigation shortcuts fire even inside text inputs
       if (matchesKeys(e, getActiveKeys('goToTasks')))    { e.preventDefault(); navigate('/tasks');    return; }
       if (matchesKeys(e, getActiveKeys('goToNotes')))    { e.preventDefault(); navigate('/notes');    return; }
@@ -61,9 +64,6 @@ export function useKeyboard() {
 
       // All remaining shortcuts are suppressed when typing in an input
       if (isInTextInput(e.target)) return;
-
-      // All view/navigation shortcuts are suppressed when any modal is open
-      if (document.querySelector('.modal-backdrop')) return;
 
       // All shortcuts are suppressed while the onboarding tour is active
       if (document.querySelector('.driver-popover')) return;

@@ -76,8 +76,8 @@ vi.mock("./NoteEditor.css", () => ({}));
 
 // CodeMirror uses ResizeObserver / DOM APIs not available in jsdom; stub the
 // PlainTextEditor so plain-mode tests cover NoteEditor logic, not CM internals.
-vi.mock("./PlainTextEditor", () => {
-  const React = require("react");
+vi.mock("./PlainTextEditor", async () => {
+  const React = await import("react");
   const PlainTextEditor = React.forwardRef(
     (
       props: { value: string; onChange?: (v: string) => void },

@@ -4,7 +4,8 @@
  */
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { basicSetup, EditorView } from 'codemirror';
+import { basicSetup } from 'codemirror';
+import { EditorView } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { markdown } from '@codemirror/lang-markdown';
