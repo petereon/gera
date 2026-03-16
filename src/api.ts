@@ -443,3 +443,32 @@ export async function syncGoogleCalendar(
     calendar_id: calendarId,
   });
 }
+
+// ============================================================================
+// VAULT COMMANDS
+// ============================================================================
+
+export interface VaultInfo {
+  path: string;
+  name: string;
+}
+
+export interface VaultStatus {
+  current: string;
+  recent: VaultInfo[];
+}
+
+/** Return the current vault path and list of recently opened vaults. */
+export async function getVaultStatus(): Promise<VaultStatus> {
+  return pyInvoke<VaultStatus>("get_vault_status", null);
+}
+
+/** Initialize a new Gera vault at *path* and switch to it. */
+export async function newVault(path: string): Promise<VaultStatus> {
+  return pyInvoke<VaultStatus>("new_vault", { path });
+}
+
+/** Open an existing Gera vault at *path* and switch to it. */
+export async function openVault(path: string): Promise<VaultStatus> {
+  return pyInvoke<VaultStatus>("open_vault", { path });
+}
