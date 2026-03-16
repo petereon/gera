@@ -4,13 +4,20 @@
  */
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { basicSetup } from 'codemirror';
-import { EditorView } from '@codemirror/view';
+import './PlainTextEditor.css';
+import {
+  lineNumbers, highlightActiveLineGutter, highlightSpecialChars,
+  dropCursor, rectangularSelection, crosshairCursor,
+  highlightActiveLine, EditorView, keymap,
+} from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
-import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { history, defaultKeymap, historyKeymap, indentWithTab } from '@codemirror/commands';
+import { foldGutter, HighlightStyle, syntaxHighlighting, indentOnInput, bracketMatching } from '@codemirror/language';
+import {
+  closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap,
+} from '@codemirror/autocomplete';
+import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 import { markdown } from '@codemirror/lang-markdown';
-import { indentWithTab } from '@codemirror/commands';
-import { keymap } from '@codemirror/view';
 import { tags as t } from '@lezer/highlight';
 
 export interface PlainTextEditorRef {
@@ -123,9 +130,6 @@ const appTheme = EditorView.theme({
     backgroundColor: 'var(--surface-secondary)',
     borderRadius: '0',
   },
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': {
-    backgroundColor: 'var(--accent-blue-subtle) !important',
-  },
   '.cm-foldPlaceholder': {
     backgroundColor: 'var(--surface-secondary)',
     borderColor: 'var(--surface-secondary)',
@@ -153,10 +157,25 @@ export const PlainTextEditor = forwardRef<PlainTextEditorRef, PlainTextEditorPro
         state: EditorState.create({
           doc: value,
           extensions: [
-            basicSetup,
+            // basicSetup minus drawSelection — native ::selection CSS is used instead
+            lineNumbers(),
+            highlightActiveLineGutter(),
+            highlightSpecialChars(),
+            history(),
+            foldGutter(),
+            dropCursor(),
+            indentOnInput(),
+            bracketMatching(),
+            closeBrackets(),
+            rectangularSelection(),
+            crosshairCursor(),
+            highlightActiveLine(),
+            highlightSelectionMatches(),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, ...completionKeymap, indentWithTab] as any),
+            autocompletion(),
             markdown(),
             syntaxHighlighting(geraHighlightStyle),
-            keymap.of([indentWithTab]),
             appTheme,
             EditorView.updateListener.of((update) => {
               if (update.docChanged) {

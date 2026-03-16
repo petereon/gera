@@ -8,6 +8,7 @@
  * - project: #project-id (purple)
  */
 
+import { useAppStore } from '../stores/useAppStore';
 import { GeraRefKind } from './GeraRefNode';
 import { ClockIcon } from '../components/icons/Icons';
 import { formatEventDate, formatEventTime } from '../utils/dateFormatting';
@@ -36,13 +37,17 @@ export function GeraRefChip({
   event,
   project,
 }: GeraRefChipProps): JSX.Element {
+  const events = useAppStore((s) => s.events);
+
   // Determine the display text based on kind
   let displayText = value;
 
   switch (kind) {
-    case 'event':
-      displayText = event ? `@${event}` : value;
+    case 'event': {
+      const eventName = event ? events.find((e) => e.id === event)?.name : undefined;
+      displayText = eventName ? `@${eventName}` : (event ? `@${event}` : value);
       break;
+    }
     case 'datetime':
       if (datetime) {
         const d = new Date(datetime);

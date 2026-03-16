@@ -17,6 +17,7 @@ import {
   $getSelection,
   $isRangeSelection,
   $isTextNode,
+  COMMAND_PRIORITY_CRITICAL,
   COMMAND_PRIORITY_LOW,
   KEY_ARROW_DOWN_COMMAND,
   KEY_ARROW_UP_COMMAND,
@@ -71,7 +72,7 @@ function lockScrollTop(el: HTMLElement, savedTop: number, durationMs = 200): () 
 /** Auto-detect which panel to show based on what is typed after `@`. */
 function detectPanel(query: string): Panel {
   if (query.length === 0) return 'choose';
-  if (/^\d/.test(query)) return 'absolute';
+  if (/^\d{4}-/.test(query)) return 'absolute';
   return 'event-ref';
 }
 
@@ -374,7 +375,7 @@ export function GeraRefTypeahead(): JSX.Element | null {
         return true;
       }
       return false;
-    }, COMMAND_PRIORITY_LOW);
+    }, COMMAND_PRIORITY_CRITICAL);
 
     const unregTab = editor.registerCommand(KEY_TAB_COMMAND, (e) => {
       if (panel === 'event-ref' && filteredEvents.length > 0) {
@@ -384,7 +385,7 @@ export function GeraRefTypeahead(): JSX.Element | null {
         return true;
       }
       return false;
-    }, COMMAND_PRIORITY_LOW);
+    }, COMMAND_PRIORITY_CRITICAL);
 
     const unregEsc = editor.registerCommand(KEY_ESCAPE_COMMAND, (e) => {
       e?.preventDefault();
@@ -607,8 +608,8 @@ export function GeraRefTypeahead(): JSX.Element | null {
                   onMouseEnter={() => setSelectedIndex(i)}
                   onClick={() => completeEvent(ev.id)}
                 >
-                  <span className="gera-typeahead__item-id">@{ev.id}</span>
                   <span className="gera-typeahead__item-name">{ev.name}</span>
+                  <span className="gera-typeahead__item-id">{ev.id}</span>
                 </li>
               ))}
             </ul>

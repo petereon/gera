@@ -54,7 +54,7 @@ function makePatterns() {
   return {
     RELATIVE_REF: /@(before|after)\[(\d+[YMWDhm])\]:([\w][\w:.\-]*)/g,
     DATETIME_REF: /@(\d{4}-\d{1,2}-\d{1,2}(?:[T ]\d{2}:\d{2}))/g,
-    EVENT_REF: /@(?!before\[|after\[)([a-zA-Z][\w\-]*)/g,
+    EVENT_REF: /@(?!before\[|after\[|\d{4}-)([a-zA-Z0-9][\w\-]*)/g,
     PROJECT_TAG: /#([a-zA-Z][\w\-]*)/g,
   };
 }

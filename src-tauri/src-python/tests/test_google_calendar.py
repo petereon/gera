@@ -121,12 +121,11 @@ class TestGoogleEventToEntity:
         assert entity.name == "Sprint Retro"
         assert entity.source == "google_calendar"
 
-    def test_id_is_derived_from_account_and_source_id(self):
+    def test_id_is_source_event_id(self):
         raw = _gcal_event(id="abc123")
         entity = google_event_to_entity(raw, "user@example.com", CALENDAR)
         assert entity is not None
-        assert "user_example.com" in entity.id
-        assert "abc123" in entity.id
+        assert entity.id == "abc123"
 
     def test_metadata_populated(self):
         raw = _gcal_event(id="abc", etag='"etag-xyz"')
@@ -279,7 +278,7 @@ class TestSyncGoogleEvents:
 
     def test_unchanged_event_is_skipped(self, repo: Repository):
         # Pre-populate repo with an event that matches the incoming etag
-        repo.create_event(_local_event(id="gcal-user_example.com-gcal-123", etag='"etag-abc"'))
+        repo.create_event(_local_event(id="gcal-123", etag='"etag-abc"'))
         raw = [_gcal_event(id="gcal-123", etag='"etag-abc"')]
         with self._patch_fetch(raw):
             result = sync_google_events(repo, "token", ACCOUNT, CALENDAR)
@@ -288,7 +287,7 @@ class TestSyncGoogleEvents:
         assert result.updated == 0
 
     def test_changed_etag_triggers_update(self, repo: Repository):
-        existing_id = f"gcal-{ACCOUNT.replace('@', '_')}-gcal-123"
+        existing_id = "gcal-123"
         repo.create_event(_local_event(id=existing_id, etag='"old-etag"'))
         raw = [_gcal_event(id="gcal-123", etag='"new-etag"')]
         with self._patch_fetch(raw):
@@ -301,7 +300,7 @@ class TestSyncGoogleEvents:
 
     def test_event_not_in_fetch_counted_as_stale(self, repo: Repository):
         # An event in the repo from this account that doesn't appear in the fetch
-        repo.create_event(_local_event(id="gcal-user_example.com-old-evt", source_event_id="old-evt"))
+        repo.create_event(_local_event(id="old-evt", source_event_id="old-evt"))
         raw = []  # fetch returns nothing
         with self._patch_fetch(raw):
             result = sync_google_events(repo, "token", ACCOUNT, CALENDAR)
@@ -310,7 +309,7 @@ class TestSyncGoogleEvents:
     def test_events_from_other_accounts_not_touched(self, repo: Repository):
         # Event from a different account — should not be considered stale
         other_evt = EventEntity(
-            id="gcal-other_example.com-x1",
+            id="x1",
             source="google_calendar",
             from_=datetime(2026, 3, 14, 9, 0),
             to=datetime(2026, 3, 14, 9, 30),
@@ -330,7 +329,7 @@ class TestSyncGoogleEvents:
             result = sync_google_events(repo, "token", ACCOUNT, CALENDAR)
         # The other account's event should not count as stale for this sync
         assert result.stale == 0
-        assert repo.get_event("gcal-other_example.com-x1") is not None
+        assert repo.get_event("x1") is not None
 
     def test_sync_result_model(self):
         r = SyncResult(created=1, updated=2, skipped=3, stale=4)

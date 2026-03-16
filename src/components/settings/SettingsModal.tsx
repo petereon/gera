@@ -151,7 +151,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 24 }}>
               <div>
                 <p style={{ margin: 0, fontWeight: 600 }}>Theme</p>
-                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 13 }}>Light / Dark</p>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 13 }}>Light / Dark / Auto</p>
               </div>
               <ThemeToggle />
             </div>

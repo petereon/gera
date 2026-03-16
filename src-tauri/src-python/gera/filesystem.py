@@ -7,6 +7,7 @@ subdirectories and seed files on application startup.
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 
 from gera.errors import (
@@ -110,8 +111,72 @@ def init_data_directory(data_root_override: str | Path | None = None) -> Path:
     for filename, content in SEED_FILES.items():
         _ensure_seed_file(data_root / filename, content)
 
+    # Run data migrations (idempotent — no-op if already up to date)
+    _migrate_gcal_ids(data_root)
+
     logger.info("Data directory ready: %s", data_root)
     return data_root
+
+
+_GCAL_ID_RE = re.compile(r'^gcal-[^-]+-(.+)$')
+
+
+def _migrate_gcal_ids(data_root: Path) -> None:
+    """Rename old-style gcal-{email}-{uuid} event IDs to bare {uuid}.
+
+    This migration is idempotent — if no old-format IDs are present it does
+    nothing.  It rewrites events.yaml, tasks.md, and all notes/projects .md
+    files in-place.
+    """
+    import yaml  # local import — only needed during migration
+
+    events_path = data_root / "events.yaml"
+    if not events_path.exists():
+        return
+
+    data = yaml.safe_load(events_path.read_text(encoding="utf-8")) or {}
+    events = data.get("events", [])
+
+    # Build old→new mapping for any gcal-style IDs
+    mapping: dict[str, str] = {}
+    for ev in events:
+        old_id = ev.get("id", "")
+        m = _GCAL_ID_RE.match(old_id)
+        if m:
+            new_id = m.group(1)
+            if new_id != old_id:
+                mapping[old_id] = new_id
+
+    if not mapping:
+        return
+
+    logger.info("Migrating %d gcal event ID(s) to bare format", len(mapping))
+
+    # Rewrite events.yaml
+    for ev in events:
+        if ev.get("id") in mapping:
+            ev["id"] = mapping[ev["id"]]
+    events_path.write_text(
+        yaml.dump(data, allow_unicode=True, sort_keys=False), encoding="utf-8"
+    )
+
+    # Rewrite inline @old-id references in a markdown file
+    def _rewrite_md(path: Path) -> None:
+        text = path.read_text(encoding="utf-8")
+        for old_id, new_id in mapping.items():
+            text = text.replace(f"@{old_id}", f"@{new_id}")
+        path.write_text(text, encoding="utf-8")
+
+    tasks_path = data_root / "tasks.md"
+    if tasks_path.exists():
+        _rewrite_md(tasks_path)
+
+    for md in sorted((data_root / "notes").glob("*.md")):
+        _rewrite_md(md)
+    for md in sorted((data_root / "projects").glob("*.md")):
+        _rewrite_md(md)
+
+    logger.info("gcal ID migration complete")
 
 
 def verify_structure(data_root: Path) -> dict[str, bool]:
