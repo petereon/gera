@@ -22,6 +22,7 @@ from gera.entities import (
 )
 from gera.entities.event_metadata import EventMetadata
 from gera.filesystem import init_data_directory, verify_structure
+from gera.repository import VAULT_CHANGED_EVENT
 from gera.renderer import render as render_markdown
 from gera.watcher import _start_watcher, _stop_watcher
 from gera.repository import Repository
@@ -35,6 +36,9 @@ commands: Commands = Commands()
 # Module-level reference to the active data root, set during main()
 _data_root: Path | None = None
 _repo: Repository | None = None
+_watcher_handle = None
+_emit_fn = None  # callable(event, payload) once app handle is available
+_app_data_dir: Path | None = None  # Tauri app-data dir, set once after build()
 
 
 def get_data_root() -> Path:
@@ -575,6 +579,167 @@ async def sync_google_calendar(body: SyncGoogleCalendarRequest, app_handle: AppH
 
 
 # ---------------------------------------------------------------------------
+# Vault management helpers
+# ---------------------------------------------------------------------------
+
+
+def _get_app_data_dir() -> Path | None:
+    """Return the resolved Tauri app-data directory, or None if not yet set."""
+    return _app_data_dir
+
+
+def _load_recent_vaults() -> list[str]:
+    adir = _get_app_data_dir()
+    if adir is None:
+        return []
+    vaults_file = adir / "vaults.json"
+    if not vaults_file.exists():
+        return []
+    try:
+        data = json.loads(vaults_file.read_text(encoding="utf-8"))
+        return data.get("recent", [])
+    except Exception:
+        return []
+
+
+def _save_recent_vault(path: str) -> None:
+    adir = _get_app_data_dir()
+    if adir is None:
+        return
+    vaults_file = adir / "vaults.json"
+    recent = _load_recent_vaults()
+    recent = [p for p in recent if p != path]
+    recent.insert(0, path)
+    vaults_file.write_text(json.dumps({"recent": recent[:10]}, indent=2), encoding="utf-8")
+
+
+def _on_fs_changed(event: str, payload: str) -> None:
+    """Handle file-system changes: reload affected tables."""
+    if _repo is not None:
+        try:
+            data = json.loads(payload)
+            paths = [c["path"] for c in data.get("changes", [])]
+            _repo.reload_for_changes(paths)
+        except (json.JSONDecodeError, KeyError):
+            logger.warning("Malformed fs-changed payload, doing full reload")
+            _repo.reload()
+            _repo.emit_data_changed(
+                [{"entity": t, "ids": None} for t in ["events", "notes", "projects", "tasks"]]
+            )
+
+
+def _resolve_startup_vault() -> Path:
+    """Return the vault path to open at startup.
+
+    Priority:
+    1. Most-recently-used vault recorded in ``vaults.json``
+       — only if the path still exists and passes structure validation.
+    2. Default data root (``~/Documents/Gera``), initialised if needed.
+    """
+    recent = _load_recent_vaults()
+    if recent:
+        candidate = Path(recent[0])
+        structure = verify_structure(candidate)
+        if structure.get(".") and structure.get("events.yaml") and structure.get("tasks.md"):
+            logger.info("Resuming last vault: %s", candidate)
+            return candidate
+        logger.warning("Last vault no longer valid, falling back to default: %s", candidate)
+    return init_data_directory()
+
+
+def _switch_vault(new_path: Path, *, initialize: bool) -> None:
+    """Switch the active vault to *new_path*.
+
+    If *initialize* is True, calls init_data_directory() to create the vault
+    structure.  Otherwise, calls verify_structure() and raises ValueError if the
+    directory is not a valid Gera vault.
+    """
+    global _data_root, _repo, _watcher_handle  # noqa: PLW0603
+
+    if initialize:
+        resolved = init_data_directory(new_path)
+    else:
+        resolved = new_path.expanduser().resolve()
+        structure = verify_structure(resolved)
+        if not structure.get(".") or not structure.get("events.yaml") or not structure.get("tasks.md"):
+            raise ValueError(f"Not a valid Gera vault: {resolved}")
+
+    # Stop the current watcher; drop the old repo reference (SQLite closes via GC —
+    # calling close() from a different thread raises ProgrammingError).
+    if _watcher_handle is not None:
+        _stop_watcher(_watcher_handle)
+        _watcher_handle = None
+    _repo = None  # drop reference; connection closed by GC on the owning thread
+
+    # Signal the UI to clear its state and show a loading indicator.
+    if _emit_fn is not None:
+        try:
+            _emit_fn(VAULT_CHANGED_EVENT, json.dumps({"path": str(resolved)}))
+        except Exception:
+            logger.exception("Failed to emit %s", VAULT_CHANGED_EVENT)
+
+    _data_root = resolved
+    _repo = Repository(_data_root)
+    _repo.clear_all()  # unconditionally wipe shared in-memory DB before loading new vault
+    _repo.reload()
+
+    if _emit_fn is not None:
+        _repo.set_emit(_emit_fn)
+
+    _watcher_handle = _start_watcher(_data_root, _on_fs_changed)
+
+    _repo.emit_data_changed(
+        [{"entity": t, "ids": None} for t in ["events", "notes", "projects", "tasks"]]
+    )
+
+    logger.info("Switched vault to: %s", _data_root)
+
+
+# ---------------------------------------------------------------------------
+# Vault Tauri commands
+# ---------------------------------------------------------------------------
+
+
+class VaultInfo(BaseModel):
+    path: str
+    name: str
+
+
+class VaultStatus(BaseModel):
+    current: str
+    recent: list[VaultInfo]
+
+
+@commands.command()
+async def get_vault_status(body: None) -> VaultStatus:
+    """Return the current vault path and the list of recently opened vaults."""
+    return VaultStatus(
+        current=str(_data_root) if _data_root else "",
+        recent=[VaultInfo(path=p, name=Path(p).name) for p in _load_recent_vaults()],
+    )
+
+
+class VaultPathRequest(BaseModel):
+    path: str
+
+
+@commands.command()
+async def new_vault(body: VaultPathRequest) -> VaultStatus:
+    """Initialize a new Gera vault at *path* and switch to it."""
+    _switch_vault(Path(body.path), initialize=True)
+    _save_recent_vault(str(_data_root))
+    return await get_vault_status(None)
+
+
+@commands.command()
+async def open_vault(body: VaultPathRequest) -> VaultStatus:
+    """Open an existing Gera vault at *path* and switch to it."""
+    _switch_vault(Path(body.path), initialize=False)
+    _save_recent_vault(str(_data_root))
+    return await get_vault_status(None)
+
+
+# ---------------------------------------------------------------------------
 # App entry point
 # ---------------------------------------------------------------------------
 
@@ -582,21 +747,14 @@ async def sync_google_calendar(body: SyncGoogleCalendarRequest, app_handle: AppH
 def main() -> int:
     global _data_root  # noqa: PLW0603
     global _repo  # noqa: PLW0603
+    global _watcher_handle  # noqa: PLW0603
+    global _emit_fn  # noqa: PLW0603
+    global _app_data_dir  # noqa: PLW0603
 
     logging.basicConfig(
         level=logging.DEBUG,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
-
-    # Initialise the data directory (creates dirs/seed files if needed)
-    try:
-        _data_root = init_data_directory()
-        _repo = Repository(_data_root)
-        _repo.reload()
-        logger.info("Data root: %s", _data_root)
-    except Exception:
-        logger.exception("Failed to initialise data directory")
-        return 1
 
     with start_blocking_portal("asyncio") as portal:  # or `trio`
         app = builder_factory().build(
@@ -604,39 +762,33 @@ def main() -> int:
             invoke_handler=commands.generate_handler(portal),
         )
 
-        # Start the file-system watcher (emits gera://fs-changed events)
         handle = app.handle()
+        _emit_fn = get_emit(handle)
+        # Use the same path resolver as commands so reads and writes go to the
+        # same vaults.json regardless of how the OS propagates env vars.
+        _app_data_dir = Manager.path(handle).app_data_dir()
+        logger.info("App data dir: %s", _app_data_dir)
 
-        _emit = get_emit(handle)
+        try:
+            _data_root = _resolve_startup_vault()
+            _repo = Repository(_data_root)
+            _repo.reload()
+            _repo.set_emit(_emit_fn)
+            logger.info("Data root: %s", _data_root)
+            # Persist so next launch reopens this vault.
+            _save_recent_vault(str(_data_root))
+        except Exception:
+            logger.exception("Failed to initialise data directory")
+            return 1
 
-        # Give Repository the emit function now that app handle exists
-        if _repo is not None:
-            _repo.set_emit(_emit)
-
-        def _on_fs_changed(event: str, payload: str) -> None:
-            """Handle file-system changes: reload affected tables.
-
-            The repository emits ``gera://data-changed`` itself after reload.
-            """
-            if _repo is not None:
-                try:
-                    data = json.loads(payload)
-                    paths = [c["path"] for c in data.get("changes", [])]
-                    _repo.reload_for_changes(paths)
-                except (json.JSONDecodeError, KeyError):
-                    logger.warning("Malformed fs-changed payload, doing full reload")
-                    _repo.reload()
-                    _repo.emit_data_changed(
-                        [{"entity": t, "ids": None} for t in ["events", "notes", "projects", "tasks"]]
-                    )
-
-        watcher_handle = _start_watcher(_data_root, _on_fs_changed)
+        _watcher_handle = _start_watcher(_data_root, _on_fs_changed)
 
         exit_code = app.run_return()
 
-        # Clean up
-        _stop_watcher(watcher_handle)
-        if _repo is not None:
-            _repo.close()
+        # _repo.close() intentionally omitted: the SQLite keep-alive was created
+        # on a different thread; calling close() here raises ProgrammingError.
+        # The in-memory DB is freed automatically when the process exits.
+        if _watcher_handle is not None:
+            _stop_watcher(_watcher_handle)
 
         return exit_code

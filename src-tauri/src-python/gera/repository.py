@@ -58,6 +58,7 @@ def _sanitize_content(content: str) -> str:
 _DB_URI = "file::memory:?cache=shared"
 
 DATA_CHANGED_EVENT = "gera://data-changed"
+VAULT_CHANGED_EVENT = "gera://vault-changed"
 
 # Type alias for the emit callback
 EmitFn = Callable[[str, str], None]
@@ -625,6 +626,35 @@ class Repository:
             json.dumps(t.resolved_event_names),
             json.dumps(t.resolved_project_names),
         )
+
+    # ------------------------------------------------------------------
+    # Vault switch helper
+    # ------------------------------------------------------------------
+
+    def clear_all(self) -> None:
+        """Delete every row from all entity tables and rebuild FTS indexes.
+
+        Called during vault switch so that data from the previous vault's
+        shared in-memory DB does not leak into the new vault's view.
+        The reload_* methods only do targeted DELETEs (e.g. by source_file),
+        so without this step, note-embedded tasks whose source files don't
+        exist in the new vault would persist.
+        """
+        with self._conn() as db:
+            db.executescript(
+                """\
+                DELETE FROM tasks;
+                DELETE FROM projects;
+                DELETE FROM notes;
+                DELETE FROM events;
+                INSERT INTO events_fts(events_fts) VALUES('rebuild');
+                INSERT INTO notes_fts(notes_fts) VALUES('rebuild');
+                INSERT INTO projects_fts(projects_fts) VALUES('rebuild');
+                INSERT INTO tasks_fts(tasks_fts) VALUES('rebuild');
+                """
+            )
+            db.commit()
+        logger.info("All entity tables cleared for vault switch")
 
     # ------------------------------------------------------------------
     # Reload from disk

@@ -12,6 +12,8 @@ export function useGeraSync() {
   const setNotes = useAppStore((state) => state.setNotes);
   const setTasks = useAppStore((state) => state.setTasks);
   const setLoading = useAppStore((state) => state.setLoading);
+  const setSelectedEvent = useAppStore((state) => state.setSelectedEvent);
+  const setSelectedNote = useAppStore((state) => state.setSelectedNote);
 
   const reloadData = useCallback(async () => {
     try {
@@ -39,11 +41,26 @@ export function useGeraSync() {
     const unlisten = listen<{ changes: { entity: string; ids: string[] | null }[] }>(
       'gera://data-changed',
       () => {
-        reloadData();
+        reloadData().then(() => setLoading(false));
       }
     );
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [reloadData]);
+  }, [reloadData, setLoading]);
+
+  // On vault switch: clear all data + selections immediately, show loading
+  useEffect(() => {
+    const unlisten = listen<{ path: string }>('gera://vault-changed', () => {
+      setEvents([]);
+      setNotes([]);
+      setTasks([]);
+      setSelectedEvent(null);
+      setSelectedNote(null);
+      setLoading(true);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [setEvents, setNotes, setTasks, setSelectedEvent, setSelectedNote, setLoading]);
 }

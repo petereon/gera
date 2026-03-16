@@ -19,13 +19,13 @@ vi.mock("../api", async (importOriginal) => {
   };
 });
 
-// listen mock: captures the handler so tests can trigger data-changed events
-let capturedHandler: (() => void) | null = null;
+// listen mock: captures handlers by event name so tests can trigger specific events
+const capturedHandlers: Record<string, () => void> = {};
 const mockUnlisten = vi.fn();
 
 vi.mock("@tauri-apps/api/event", () => ({
-  listen: vi.fn((_event: string, handler: () => void) => {
-    capturedHandler = handler;
+  listen: vi.fn((event: string, handler: () => void) => {
+    capturedHandlers[event] = handler;
     return Promise.resolve(mockUnlisten);
   }),
 }));
@@ -36,7 +36,7 @@ const initialAppState = useAppStore.getState();
 
 beforeEach(() => {
   useAppStore.setState(initialAppState, true);
-  capturedHandler = null;
+  Object.keys(capturedHandlers).forEach((k) => delete capturedHandlers[k]);
   mockUnlisten.mockReset();
   mockListEvents.mockResolvedValue([]);
   mockListNotes.mockResolvedValue([]);
@@ -100,13 +100,13 @@ describe("useGeraSync — data-changed event", () => {
   it("registers a listener for gera://data-changed on mount", async () => {
     const { listen } = await import("@tauri-apps/api/event");
     renderHook(() => useGeraSync());
-    await waitFor(() => expect(capturedHandler).not.toBeNull());
+    await waitFor(() => expect(capturedHandlers["gera://data-changed"]).toBeDefined());
     expect(listen).toHaveBeenCalledWith("gera://data-changed", expect.any(Function));
   });
 
   it("reloads data when the data-changed event fires", async () => {
     renderHook(() => useGeraSync());
-    await waitFor(() => expect(capturedHandler).not.toBeNull());
+    await waitFor(() => expect(capturedHandlers["gera://data-changed"]).toBeDefined());
 
     // First load already happened — reset call counts
     mockListEvents.mockClear();
@@ -114,7 +114,7 @@ describe("useGeraSync — data-changed event", () => {
     mockListFloatingTasks.mockClear();
 
     // Simulate a gera://data-changed event
-    capturedHandler!();
+    capturedHandlers["gera://data-changed"]!();
 
     await waitFor(() => expect(mockListEvents).toHaveBeenCalledTimes(1));
     expect(mockListNotes).toHaveBeenCalledTimes(1);
@@ -123,10 +123,11 @@ describe("useGeraSync — data-changed event", () => {
 
   it("calls unlisten when the component unmounts", async () => {
     const { unmount } = renderHook(() => useGeraSync());
-    await waitFor(() => expect(capturedHandler).not.toBeNull());
+    await waitFor(() => expect(capturedHandlers["gera://data-changed"]).toBeDefined());
 
     unmount();
 
-    await waitFor(() => expect(mockUnlisten).toHaveBeenCalledTimes(1));
+    // Two listeners registered (data-changed + vault-changed) → two unlistens on unmount
+    await waitFor(() => expect(mockUnlisten).toHaveBeenCalledTimes(2));
   });
 });
