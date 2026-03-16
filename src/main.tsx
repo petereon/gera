@@ -11,6 +11,7 @@ const initTheme = () => {
       document.documentElement.dataset.theme = stored;
       return;
     }
+    // 'system' or no stored value → follow OS preference
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       document.documentElement.dataset.theme = 'dark';
       return;

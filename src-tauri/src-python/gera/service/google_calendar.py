@@ -208,9 +208,9 @@ def google_event_to_entity(
         )
         return None
 
-    # Stable Gera ID derived from platform + account + source event ID
+    # Stable Gera ID — use the Google Calendar event ID directly
     source_event_id = gcal_event.get("id", "")
-    gera_id = f"gcal-{account_email.replace('@', '_')}-{source_event_id}"
+    gera_id = source_event_id
     logger.debug("Converting Google Calendar event to entity: %s", gera_id)
 
     attendees = gcal_event.get("attendees", [])

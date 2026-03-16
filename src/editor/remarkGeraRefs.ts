@@ -18,7 +18,7 @@ import type { Root, Text } from 'mdast';
 // Regex patterns (same order as renderer.py)
 const BEFORE_REF_RE = /@before\[(\d+[YMWDhm])\]:([\w][\w:.\-]*)/g;
 const DATETIME_REF_RE = /@(\d{4}-\d{1,2}-\d{1,2}T\d{2}:\d{2})/g;
-const EVENT_REF_RE = /@(?!before\[)([a-zA-Z][\w\-]*)/g;
+const EVENT_REF_RE = /@(?!before\[|after\[|\d{4}-)([a-zA-Z0-9][\w\-]*)/g;
 const PROJECT_TAG_RE = /#([a-zA-Z][\w\-]*)/g;
 
 interface GeraRefNode extends Record<string, any> {

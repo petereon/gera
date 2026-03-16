@@ -3,9 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeToggle } from "./ThemeToggle";
 
-// invoke is already shimmed via the test alias for @tauri-apps/api/core
-
-// jsdom 28 ships without a working localStorage — provide a simple in-memory stub
+// jsdom ships without a working localStorage — provide a simple in-memory stub
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
@@ -19,64 +17,82 @@ const localStorageMock = (() => {
 })();
 vi.stubGlobal("localStorage", localStorageMock);
 
+// matchMedia is used by the component for system theme detection
+const matchMediaMock = vi.fn().mockImplementation((query: string) => ({
+  matches: false,
+  media: query,
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+}));
+vi.stubGlobal("matchMedia", matchMediaMock);
+
 beforeEach(() => {
   localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
+  matchMediaMock.mockClear();
 });
 
 describe("ThemeToggle", () => {
-  it("renders a button", () => {
+  it("renders three buttons: Light, Dark, Auto", () => {
     render(<ThemeToggle />);
-    expect(screen.getByRole("button")).toBeInTheDocument();
+    expect(screen.getByTitle("Light")).toBeInTheDocument();
+    expect(screen.getByTitle("Dark")).toBeInTheDocument();
+    expect(screen.getByTitle("Auto")).toBeInTheDocument();
   });
 
-  it("defaults to light mode when localStorage is empty", () => {
+  it("defaults to Auto (system) mode when localStorage is empty", () => {
     render(<ThemeToggle />);
-    expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTitle("Auto")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTitle("Light")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTitle("Dark")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("restores light mode from localStorage", () => {
+    localStorage.setItem("gera:theme", "light");
+    render(<ThemeToggle />);
+    expect(screen.getByTitle("Light")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTitle("Dark")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTitle("Auto")).toHaveAttribute("aria-pressed", "false");
   });
 
   it("restores dark mode from localStorage", () => {
     localStorage.setItem("gera:theme", "dark");
     render(<ThemeToggle />);
-    expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTitle("Dark")).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("sets data-theme on <html> on mount", async () => {
+  it("sets data-theme on <html> on mount (system = light when prefers-color-scheme not dark)", async () => {
     render(<ThemeToggle />);
     await waitFor(() => {
       expect(document.documentElement.dataset.theme).toBe("light");
     });
   });
 
-  it("toggles to dark mode when clicked from light", async () => {
+  it("clicking Light sets data-theme to light and persists", async () => {
+    localStorage.setItem("gera:theme", "dark");
     render(<ThemeToggle />);
-    await userEvent.click(screen.getByRole("button"));
+    await userEvent.click(screen.getByTitle("Light"));
+    await waitFor(() => {
+      expect(document.documentElement.dataset.theme).toBe("light");
+    });
+    expect(localStorage.getItem("gera:theme")).toBe("light");
+  });
+
+  it("clicking Dark sets data-theme to dark and persists", async () => {
+    render(<ThemeToggle />);
+    await userEvent.click(screen.getByTitle("Dark"));
     await waitFor(() => {
       expect(document.documentElement.dataset.theme).toBe("dark");
     });
+    expect(localStorage.getItem("gera:theme")).toBe("dark");
   });
 
-  it("toggles back to light mode when clicked from dark", async () => {
+  it("clicking Auto persists system to localStorage", async () => {
     localStorage.setItem("gera:theme", "dark");
     render(<ThemeToggle />);
-    await userEvent.click(screen.getByRole("button"));
+    await userEvent.click(screen.getByTitle("Auto"));
     await waitFor(() => {
-      expect(document.documentElement.dataset.theme).toBe("light");
+      expect(localStorage.getItem("gera:theme")).toBe("system");
     });
-  });
-
-  it("persists the chosen theme to localStorage", async () => {
-    render(<ThemeToggle />);
-    await userEvent.click(screen.getByRole("button"));
-    await waitFor(() => {
-      expect(localStorage.getItem("gera:theme")).toBe("dark");
-    });
-  });
-
-  it("shows the title hint for the opposite mode", async () => {
-    render(<ThemeToggle />);
-    expect(screen.getByRole("button")).toHaveAttribute("title", "Switch to dark mode");
-    await userEvent.click(screen.getByRole("button"));
-    expect(screen.getByRole("button")).toHaveAttribute("title", "Switch to light mode");
   });
 });
