@@ -52,5 +52,6 @@ Major milestones planned for the project:
 - [ ] Scriptability or plugin system
 - [ ] Sync for Outlook calendar
 - [ ] Localization
+- [ ] Update distribution
 - [ ] Mobile app
 - [ ] P2P sync between mobile apps and desktop apps
