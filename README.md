@@ -1,9 +1,16 @@
-# Gera
+<p align="center">
+  <img src="src-tauri/icons/logo.svg" width="200"/>
+    <h1>Gera</h1>
+</p>
 
-> [!NOTE]
+> [!WARNING]
 > Gera is in pre-alpha state and under heavy development, it is mostly feature-complete as far as basic functionality goes. Bugs are expected and undoubtly numerous.
 
 Gera is a unified workspace that connects your schedule, tasks, and knowledge. It organizes your work locally without restricting your data to proprietary formats or cloud subscriptions.
+
+<p align="center">
+  <img src="public/gera.png"/>
+</p>
 
 ## Core Concepts
 
