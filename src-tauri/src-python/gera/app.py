@@ -13,7 +13,6 @@ from pytauri import (
     context_factory,
 )
 
-
 from gera.entities import (
     EventEntity,
     NoteEntity,
@@ -22,12 +21,10 @@ from gera.entities import (
 )
 from gera.entities.event_metadata import EventMetadata
 from gera.filesystem import init_data_directory, verify_structure
-from gera.repository import VAULT_CHANGED_EVENT
 from gera.renderer import render as render_markdown
-from gera.watcher import _start_watcher, _stop_watcher
-from gera.repository import Repository
-
+from gera.repository import VAULT_CHANGED_EVENT, Repository
 from gera.utils import get_emit
+from gera.watcher import _start_watcher, _stop_watcher
 
 logger = logging.getLogger(__name__)
 
@@ -445,7 +442,6 @@ async def create_event(body: CreateEventRequest) -> CreateEventResponse:
     return CreateEventResponse(event=result)
 
 
-
 class UpdateEventRequest(BaseModel):
     id: str
     name: str
@@ -509,16 +505,18 @@ class SyncGoogleCalendarResponse(BaseModel):
 
 
 @commands.command()
-async def sync_google_calendar(body: SyncGoogleCalendarRequest, app_handle: AppHandle) -> SyncGoogleCalendarResponse:
+async def sync_google_calendar(
+    body: SyncGoogleCalendarRequest, app_handle: AppHandle
+) -> SyncGoogleCalendarResponse:
     """Fetch and merge events from a connected Google Calendar account.
-    
+
     Args:
         account_email: Email of the connected Google account
         calendar_id: Google Calendar ID to sync (default 'primary')
-    
+
     Returns:
         Sync result with counts of created/updated/skipped/stale events
-        
+
     Note:
         Google tokens are stored in the Tauri app data directory by the Rust OAuth handler.
     """
@@ -526,27 +524,31 @@ async def sync_google_calendar(body: SyncGoogleCalendarRequest, app_handle: AppH
 
     token_file = Manager.path(app_handle).app_data_dir() / "google_tokens.json"
     if not token_file.exists():
-        raise ValueError(f"No Google tokens found at {token_file}. Please authenticate first.")
-    
+        raise ValueError(
+            f"No Google tokens found at {token_file}. Please authenticate first."
+        )
+
     try:
         tokens_data = json.loads(token_file.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, IOError) as e:
         raise ValueError(f"Failed to read Google tokens: {e}") from e
-    
+
     # Find token for this account email
     token_data = None
     for token in tokens_data:
         if token.get("account_email") == body.account_email:
             token_data = token
             break
-    
+
     if token_data is None:
         raise ValueError(f"No token found for account: {body.account_email}")
 
     # Refresh the access token (expires after ~1 hour) before calling the API.
     refresh_token = token_data.get("refresh_token")
     if not refresh_token:
-        raise ValueError(f"No refresh token stored for {body.account_email}. Re-authenticate.")
+        raise ValueError(
+            f"No refresh token stored for {body.account_email}. Re-authenticate."
+        )
     try:
         refreshed = google_calendar.refresh_access_token(refresh_token)
     except ValueError as exc:
@@ -569,7 +571,7 @@ async def sync_google_calendar(body: SyncGoogleCalendarRequest, app_handle: AppH
         account_email=body.account_email,
         calendar_id=body.calendar_id,
     )
-    
+
     return SyncGoogleCalendarResponse(
         created=result.created,
         updated=result.updated,
@@ -604,13 +606,16 @@ def _load_recent_vaults() -> list[str]:
 
 def _save_recent_vault(path: str) -> None:
     adir = _get_app_data_dir()
+    adir.mkdir(parents=True, exist_ok=True)
     if adir is None:
         return
     vaults_file = adir / "vaults.json"
     recent = _load_recent_vaults()
     recent = [p for p in recent if p != path]
     recent.insert(0, path)
-    vaults_file.write_text(json.dumps({"recent": recent[:10]}, indent=2), encoding="utf-8")
+    vaults_file.write_text(
+        json.dumps({"recent": recent[:10]}, indent=2), encoding="utf-8"
+    )
 
 
 def _on_fs_changed(event: str, payload: str) -> None:
@@ -624,7 +629,10 @@ def _on_fs_changed(event: str, payload: str) -> None:
             logger.warning("Malformed fs-changed payload, doing full reload")
             _repo.reload()
             _repo.emit_data_changed(
-                [{"entity": t, "ids": None} for t in ["events", "notes", "projects", "tasks"]]
+                [
+                    {"entity": t, "ids": None}
+                    for t in ["events", "notes", "projects", "tasks"]
+                ]
             )
 
 
@@ -640,10 +648,16 @@ def _resolve_startup_vault() -> Path:
     if recent:
         candidate = Path(recent[0])
         structure = verify_structure(candidate)
-        if structure.get(".") and structure.get("events.yaml") and structure.get("tasks.md"):
+        if (
+            structure.get(".")
+            and structure.get("events.yaml")
+            and structure.get("tasks.md")
+        ):
             logger.info("Resuming last vault: %s", candidate)
             return candidate
-        logger.warning("Last vault no longer valid, falling back to default: %s", candidate)
+        logger.warning(
+            "Last vault no longer valid, falling back to default: %s", candidate
+        )
     return init_data_directory()
 
 
@@ -661,7 +675,11 @@ def _switch_vault(new_path: Path, *, initialize: bool) -> None:
     else:
         resolved = new_path.expanduser().resolve()
         structure = verify_structure(resolved)
-        if not structure.get(".") or not structure.get("events.yaml") or not structure.get("tasks.md"):
+        if (
+            not structure.get(".")
+            or not structure.get("events.yaml")
+            or not structure.get("tasks.md")
+        ):
             raise ValueError(f"Not a valid Gera vault: {resolved}")
 
     # Stop the current watcher; drop the old repo reference (SQLite closes via GC —
